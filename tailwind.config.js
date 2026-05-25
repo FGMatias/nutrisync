@@ -37,6 +37,15 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        danger: "hsl(var(--danger))",
+        info: "hsl(var(--info))",
+        sidebar: {
+          bg: "var(--sidebar-bg)",
+          fg: "var(--sidebar-fg)",
+          border: "var(--sidebar-border)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
