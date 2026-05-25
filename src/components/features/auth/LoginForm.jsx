@@ -100,12 +100,8 @@ export default function LoginForm() {
 
       <Button
         type="submit"
-        className="w-full"
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
         disabled={isPending}
-        style={{
-          backgroundColor: "var(--primary)",
-          color: "var(--primary-fg)",
-        }}
       >
         {isPending ? (
           <>

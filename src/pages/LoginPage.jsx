@@ -62,8 +62,12 @@ export default function LoginPage() {
       style={{ backgroundColor: "#0d3d30" }}
     >
       <div
-        className="w-full max-w-sm rounded-lg bg-white p-8 shadow-xl"
-        style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+        className="w-full max-w-sm rounded-lg p-8"
+        style={{
+          background: "var(--card)",
+          color: "var(--card-fg)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+        }}
       >
         <div className="flex flex-col items-center mb-6">
           <NutriSyncLogo size={52} />
@@ -71,15 +75,17 @@ export default function LoginPage() {
             className="mt-2 text-xl font-bold"
             style={{ color: "hsl(174,72%,24%)" }}
           >
-            NutriSync
+            Chasquis
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">IE 8060 Los Chasquis</p>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted-fg)" }}>
+            IE 8060 · Sistema PAE
+          </p>
         </div>
 
         <LoginForm />
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          NutriSync v1.0 · Sistema PAE
+        <p className="mt-6 text-center text-xs" style={{ color: "var(--muted-fg)" }}>
+          Chasquis v1.0 · Programa de Alimentación Escolar
         </p>
       </div>
     </div>
