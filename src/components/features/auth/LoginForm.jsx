@@ -1,0 +1,121 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { ROLE_DEFAULT_VIEW } from "../../../constants/roles";
+import { useSignIn } from "../../../hooks/queries/useAuth";
+import { parseAuthError } from "../../../lib/auth-errors";
+import { loginSchema } from "../../../schemas/auth.schema";
+import { useAuthStore } from "../../../stores/authStore";
+import { Alert, AlertDescription } from "../../ui/alert";
+import { Button } from "../../ui/button";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+
+export default function LoginForm() {
+  const navigate = useNavigate();
+  const { perfil } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const { mutate: signIn, isPending } = useSignIn();
+
+  const onSubmit = (values) => {
+    setAuthError("");
+    signIn(values, {
+      onSuccess: () => {
+        const destino = perfil?.rol
+          ? (ROLE_DEFAULT_VIEW[perfil.rol] ?? "/dashboard")
+          : "/dashboard";
+        navigate(destino, { replace: true });
+      },
+      onError: (error) => {
+        setAuthError(parseAuthError(error));
+      },
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {authError && (
+        <Alert variant="destructive">
+          <AlertDescription>{authError}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="space-y-1">
+        <Label htmlFor="email">Correo electrónico</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="usuario@ie8060.edu.pe"
+          autoComplete="email"
+          {...register("email")}
+          className={
+            errors.email ? "border-red-500 focus-visible:ring-red-500" : ""
+          }
+        />
+        {errors.email && (
+          <p className="text-xs text-red-500">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="password">Contraseña</Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            {...register("password")}
+            className={
+              errors.password
+                ? "border-red-500 focus-visible:ring-red-500 pr-10"
+                : "pr-10"
+            }
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            tabIndex={-1}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+        {errors.password && (
+          <p className="text-xs text-red-500">{errors.password.message}</p>
+        )}
+      </div>
+
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isPending}
+        style={{
+          backgroundColor: "var(--primary)",
+          color: "var(--primary-fg)",
+        }}
+      >
+        {isPending ? (
+          <>
+            <Loader2 size={16} className="mr-2 animate-spin" />
+            Ingresando...
+          </>
+        ) : (
+          "Iniciar Sesión"
+        )}
+      </Button>
+    </form>
+  );
+}
