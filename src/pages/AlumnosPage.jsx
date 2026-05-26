@@ -1,8 +1,11 @@
-import { useState } from 'react'
-import { Plus, QrCode, Upload } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { Plus, QrCode, Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ALUMNOS_MOCK } from '../mock/alumnos.mock'
+import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
+import { alumnoSchema } from '../schemas/alumnos.schema'
+import { useAlumnos, useCreateAlumno, useUpdateAlumno } from '../hooks/queries/useAlumnos'
 import DataTable from '../components/shared/DataTable'
 import FilterBar from '../components/shared/FilterBar'
 import PageHeader from '../components/shared/PageHeader'
@@ -22,6 +25,10 @@ import {
 import { Switch } from '../components/ui/switch'
 
 export default function AlumnosPage() {
+  const { data: alumnosData = [], isLoading } = useAlumnos()
+  const { mutate: createAlumno, isPending: isCreating } = useCreateAlumno()
+  const { mutate: updateAlumno, isPending: isUpdating } = useUpdateAlumno()
+
   const [search, setSearch] = useState('')
   const [filtroGrado, setFiltroGrado] = useState('todos')
   const [filtroSeccion, setFiltroSeccion] = useState('todas')
@@ -32,7 +39,84 @@ export default function AlumnosPage() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
   const [alumnoQr, setAlumnoQr] = useState(null)
 
+  const [formData, setFormData] = useState({
+    nombre: '', apellido: '', dni: '', grado: '', seccion: '', activo: true
+  })
+
+  useEffect(() => {
+    if (selectedAlumno) {
+      setFormData({ ...selectedAlumno })
+    } else {
+      setFormData({ nombre: '', apellido: '', dni: '', grado: '', seccion: '', activo: true })
+    }
+  }, [selectedAlumno])
+
   const activeFilters = (filtroGrado !== 'todos' ? 1 : 0) + (filtroSeccion !== 'todas' ? 1 : 0) + (filtroEstado !== 'todos' ? 1 : 0)
+
+  const filteredData = useMemo(() => {
+    return alumnosData.filter(alumno => {
+      const matchSearch = alumno.nombre.toLowerCase().includes(search.toLowerCase()) || 
+                          alumno.apellido.toLowerCase().includes(search.toLowerCase()) || 
+                          alumno.dni.includes(search);
+      const matchGrado = filtroGrado === 'todos' || alumno.grado === filtroGrado;
+      const matchSeccion = filtroSeccion === 'todas' || alumno.seccion === filtroSeccion;
+      const matchEstado = filtroEstado === 'todos' || 
+                          (filtroEstado === 'activo' && alumno.activo) || 
+                          (filtroEstado === 'inactivo' && !alumno.activo);
+      return matchSearch && matchGrado && matchSeccion && matchEstado;
+    })
+  }, [alumnosData, search, filtroGrado, filtroSeccion, filtroEstado])
+
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page])
+
+  const paginatedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, page])
+
+  const handleSave = () => {
+    const result = alumnoSchema.safeParse(formData);
+    if (!result.success) {
+      toast.error(result.error.errors[0].message);
+      return;
+    }
+    
+    if (selectedAlumno) {
+      updateAlumno(
+        { id: selectedAlumno.id, data: result.data },
+        { onSuccess: () => setDrawerOpen(false) }
+      );
+    } else {
+      const newAlumno = {
+        ...result.data,
+        codigo_qr: crypto.randomUUID()
+      };
+      createAlumno(newAlumno, { onSuccess: () => setDrawerOpen(false) });
+    }
+  }
+
+  const handleExportExcel = () => {
+    const exportData = filteredData.map(alumno => ({
+      Nombre: alumno.nombre,
+      Apellido: alumno.apellido,
+      DNI: alumno.dni,
+      'Grado/Sección': `${alumno.grado} ${alumno.seccion}`,
+      Estado: alumno.activo ? 'Activo' : 'Inactivo',
+      Registro: format(new Date(alumno.creado_en), 'dd/MM/yyyy', { locale: es })
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Alumnos');
+    XLSX.writeFile(workbook, 'Alumnos.xlsx');
+  };
 
   const columns = [
     {
@@ -96,8 +180,8 @@ export default function AlumnosPage() {
         subtitle="Padrón de estudiantes matriculados"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="outline" size="sm">
-              <Upload size={14} style={{ marginRight: 4 }} /> Importar Excel
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
+              <Download size={14} style={{ marginRight: 4 }} /> Exportar Excel
             </Button>
             <Button
               onClick={() => { setSelectedAlumno(null); setDrawerOpen(true) }}
@@ -137,8 +221,8 @@ export default function AlumnosPage() {
         </FilterBar>
       </div>
 
-      <DataTable columns={columns} data={ALUMNOS_MOCK} loading={false} />
-      <TablePagination page={page} totalPages={2} total={ALUMNOS_MOCK.length} pageSize={10} onPageChange={setPage} />
+      <DataTable columns={columns} data={paginatedData} loading={isLoading} />
+      <TablePagination page={page} totalPages={totalPages} total={filteredData.length} pageSize={pageSize} onPageChange={setPage} />
 
       {/* Drawer */}
       <Sheet open={drawerOpen} onOpenChange={v => { setDrawerOpen(v); if (!v) setSelectedAlumno(null) }}>
@@ -150,21 +234,21 @@ export default function AlumnosPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <Label>Nombre *</Label>
-                <Input defaultValue={selectedAlumno?.nombre} placeholder="Nombre" style={{ marginTop: 4 }} />
+                <Input value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} placeholder="Nombre" style={{ marginTop: 4 }} />
               </div>
               <div>
                 <Label>Apellido *</Label>
-                <Input defaultValue={selectedAlumno?.apellido} placeholder="Apellidos" style={{ marginTop: 4 }} />
+                <Input value={formData.apellido} onChange={e => setFormData({...formData, apellido: e.target.value})} placeholder="Apellidos" style={{ marginTop: 4 }} />
               </div>
             </div>
             <div>
               <Label>DNI * (8 dígitos)</Label>
-              <Input defaultValue={selectedAlumno?.dni} placeholder="12345678" maxLength={8} style={{ marginTop: 4 }} />
+              <Input value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})} placeholder="12345678" maxLength={8} style={{ marginTop: 4 }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <Label>Grado *</Label>
-                <Select defaultValue={selectedAlumno?.grado}>
+                <Select value={formData.grado} onValueChange={v => setFormData({...formData, grado: v})}>
                   <SelectTrigger style={{ marginTop: 4 }}><SelectValue placeholder="Grado..." /></SelectTrigger>
                   <SelectContent>
                     {['1ro', '2do', '3ro', '4to', '5to', '6to'].map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
@@ -173,7 +257,7 @@ export default function AlumnosPage() {
               </div>
               <div>
                 <Label>Sección *</Label>
-                <Select defaultValue={selectedAlumno?.seccion}>
+                <Select value={formData.seccion} onValueChange={v => setFormData({...formData, seccion: v})}>
                   <SelectTrigger style={{ marginTop: 4 }}><SelectValue placeholder="Sección..." /></SelectTrigger>
                   <SelectContent>
                     {['A', 'B', 'C'].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -188,13 +272,15 @@ export default function AlumnosPage() {
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Switch id="alumno-activo" defaultChecked={selectedAlumno?.activo ?? true} />
+              <Switch id="alumno-activo" checked={formData.activo} onCheckedChange={v => setFormData({...formData, activo: v})} />
               <Label htmlFor="alumno-activo" style={{ cursor: 'pointer' }}>Alumno activo</Label>
             </div>
           </div>
           <SheetFooter style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '12px 24px', background: 'var(--card)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button variant="outline" onClick={() => setDrawerOpen(false)}>Cancelar</Button>
-            <Button style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Guardar</Button>
+            <Button variant="outline" onClick={() => setDrawerOpen(false)} disabled={isCreating || isUpdating}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={isCreating || isUpdating} style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+              {isCreating || isUpdating ? 'Guardando...' : 'Guardar'}
+            </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
