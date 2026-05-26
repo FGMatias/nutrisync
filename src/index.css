@@ -5,140 +5,92 @@
 
 @layer base {
   :root {
-    --bg: hsl(0, 0%, 100%);
-    --fg: hsl(240, 10%, 3.9%);
-    --card: hsl(0, 0%, 100%);
-    --card-fg: hsl(240, 10%, 3.9%);
-    --popover: hsl(0, 0%, 100%);
-    --popover-fg: hsl(240, 10%, 3.9%);
-    --primary: hsl(174, 72%, 24%);
-    --primary-fg: hsl(0, 0%, 98%);
-    --secondary: hsl(240, 4.8%, 95.9%);
-    --secondary-fg: hsl(240, 5.9%, 10%);
-    --muted: hsl(240, 4.8%, 95.9%);
-    --muted-fg: hsl(240, 3.8%, 46.1%);
-    --border: hsl(240, 5.9%, 90%);
-    --input: hsl(240, 5.9%, 90%);
-    --ring: hsl(174, 72%, 24%);
-    --radius: 0.375rem;
-    --sidebar-bg: hsl(174, 30%, 97%);
-    --sidebar-fg: hsl(240, 10%, 3.9%);
-    --sidebar-border: hsl(240, 5.9%, 90%);
-    --success: hsl(142, 60%, 30%);
-    --success-bg: hsl(142, 60%, 95%);
-    --warning: hsl(35, 85%, 44%);
-    --warning-bg: hsl(35, 85%, 95%);
-    --danger: hsl(0, 68%, 48%);
-    --danger-bg: hsl(0, 68%, 96%);
-    --info: hsl(210, 55%, 42%);
-    --info-bg: hsl(210, 55%, 95%);
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md:
-      0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    /* === Core tokens (hsl-ready, used directly in both Tailwind classes and inline styles) === */
+    --bg:            hsl(0, 0%, 100%);
+    --fg:            hsl(240, 10%, 3.9%);
+    --card:          hsl(0, 0%, 100%);
+    --card-fg:       hsl(240, 10%, 3.9%);
+    --popover:       hsl(0, 0%, 100%);
+    --popover-fg:    hsl(240, 10%, 3.9%);
+    --primary:       hsl(174, 72%, 24%);
+    --primary-fg:    hsl(0, 0%, 98%);
+    --secondary:     hsl(240, 4.8%, 95.9%);
+    --secondary-fg:  hsl(240, 5.9%, 10%);
+    --muted:         hsl(240, 4.8%, 95.9%);
+    --muted-fg:      hsl(240, 3.8%, 46.1%);
+    --border:        hsl(240, 5.9%, 90%);
+    --input:         hsl(240, 5.9%, 90%);
+    --ring:          hsl(174, 72%, 24%);
+    --radius:        0.375rem;
+    --danger:        hsl(0, 68%, 48%);
+    --danger-fg:     hsl(0, 0%, 98%);
 
-    /* Shadcn required vars */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 174 72% 24%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 68% 48%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 174 72% 24%;
-    --radius: 0.375rem;
+    /* === Sidebar === */
+    --sidebar-bg:     hsl(174, 30%, 97%);
+    --sidebar-fg:     hsl(240, 10%, 3.9%);
+    --sidebar-border: hsl(240, 5.9%, 90%);
+
+    /* === Semantic status colors === */
+    --success:    hsl(142, 60%, 30%);
+    --success-bg: hsl(142, 60%, 95%);
+    --warning:    hsl(35, 85%, 44%);
+    --warning-bg: hsl(35, 85%, 95%);
+    --danger-bg:  hsl(0, 68%, 96%);
+    --info:       hsl(210, 55%, 42%);
+    --info-bg:    hsl(210, 55%, 95%);
+
+    --shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -2px rgba(0,0,0,.05);
   }
 
   .dark {
-    --bg: hsl(240, 10%, 3.9%);
-    --fg: hsl(0, 0%, 98%);
-    --card: hsl(240, 10%, 5.5%);
-    --card-fg: hsl(0, 0%, 98%);
-    --popover: hsl(240, 10%, 7%);
-    --popover-fg: hsl(0, 0%, 98%);
-    --primary: hsl(174, 58%, 42%);
-    --primary-fg: hsl(0, 0%, 98%);
-    --secondary: hsl(240, 3.7%, 15.9%);
+    --bg:           hsl(240, 10%, 3.9%);
+    --fg:           hsl(0, 0%, 98%);
+    --card:         hsl(240, 10%, 8%);
+    --card-fg:      hsl(0, 0%, 98%);
+    --popover:      hsl(240, 10%, 10%);
+    --popover-fg:   hsl(0, 0%, 98%);
+    --primary:      hsl(174, 58%, 42%);
+    --primary-fg:   hsl(0, 0%, 98%);
+    --secondary:    hsl(240, 3.7%, 15.9%);
     --secondary-fg: hsl(0, 0%, 98%);
-    --muted: hsl(240, 3.7%, 14%);
-    --muted-fg: hsl(240, 5%, 64.9%);
-    --border: hsl(240, 3.7%, 15.9%);
-    --input: hsl(240, 3.7%, 15.9%);
-    --ring: hsl(174, 58%, 42%);
-    --sidebar-bg: hsl(174, 45%, 7%);
-    --sidebar-fg: hsl(0, 0%, 90%);
-    --sidebar-border: hsl(240, 3.7%, 12%);
-    --success: hsl(142, 55%, 42%);
-    --success-bg: hsl(142, 55%, 9%);
-    --warning: hsl(35, 80%, 55%);
-    --warning-bg: hsl(35, 80%, 9%);
-    --danger: hsl(0, 65%, 55%);
-    --danger-bg: hsl(0, 65%, 9%);
-    --info: hsl(210, 55%, 55%);
-    --info-bg: hsl(210, 55%, 9%);
+    --muted:        hsl(240, 3.7%, 14%);
+    --muted-fg:     hsl(240, 5%, 64.9%);
+    --border:       hsl(240, 3.7%, 18%);
+    --input:        hsl(240, 3.7%, 18%);
+    --ring:         hsl(174, 58%, 42%);
+    --danger:       hsl(0, 65%, 55%);
+    --danger-fg:    hsl(0, 0%, 98%);
 
-    /* Shadcn dark vars */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 5.5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 174 58% 42%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 14%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 65% 55%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 174 58% 42%;
+    --sidebar-bg:     hsl(174, 45%, 7%);
+    --sidebar-fg:     hsl(0, 0%, 90%);
+    --sidebar-border: hsl(240, 3.7%, 14%);
+
+    --success:    hsl(142, 55%, 42%);
+    --success-bg: hsl(142, 55%, 9%);
+    --warning:    hsl(35, 80%, 55%);
+    --warning-bg: hsl(35, 80%, 9%);
+    --danger-bg:  hsl(0, 65%, 9%);
+    --info:       hsl(210, 55%, 55%);
+    --info-bg:    hsl(210, 55%, 9%);
   }
 
   * {
-    border-color: hsl(var(--border));
+    border-color: var(--border);
     box-sizing: border-box;
   }
 
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family:
-      "Inter",
-      -apple-system,
-      BlinkMacSystemFont,
-      sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
-  ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--muted-fg);
-  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted-fg); }
 }

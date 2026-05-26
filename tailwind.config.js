@@ -4,43 +4,43 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+        background: "var(--bg)",
+        foreground: "var(--fg)",
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-fg)",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-fg)",
         },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+        primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-fg)",
         },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        success: "hsl(var(--success))",
-        warning: "hsl(var(--warning))",
-        danger: "hsl(var(--danger))",
-        info: "hsl(var(--info))",
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-fg)",
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-fg)",
+        },
+        accent: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-fg)",
+        },
+        destructive: {
+          DEFAULT: "var(--danger)",
+          foreground: "var(--danger-fg)",
+        },
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
+        info: "var(--info)",
         sidebar: {
           bg: "var(--sidebar-bg)",
           fg: "var(--sidebar-fg)",
@@ -61,30 +61,15 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
-        "fade-out": { from: { opacity: "1" }, to: { opacity: "0" } },
-        "zoom-in-95": {
-          from: { transform: "scale(.95)" },
-          to: { transform: "scale(1)" },
-        },
-        "zoom-out-95": {
-          from: { transform: "scale(1)" },
-          to: { transform: "scale(.95)" },
-        },
-        "slide-in-from-right": {
-          from: { transform: "translateX(100%)" },
-          to: { transform: "translateX(0)" },
-        },
-        "slide-out-to-right": {
-          from: { transform: "translateX(0)" },
-          to: { transform: "translateX(100%)" },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        in: "fade-in 0.15s ease",
-        out: "fade-out 0.15s ease",
+        pulse: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite",
       },
     },
   },
