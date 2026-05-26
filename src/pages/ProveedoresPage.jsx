@@ -20,10 +20,12 @@ import {
   useProveedores,
   useToggleActivoProveedor,
 } from "../hooks/queries/useProveedores";
+import { useAuth } from "../hooks/queries/useAuth";
 
 const PAGE_SIZE = 10;
 
 export function ProveedoresPage() {
+  const { perfil } = useAuth();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
@@ -58,6 +60,7 @@ export function ProveedoresPage() {
   const { mutate: deleteProveedor, isPending: isDeleting } =
     useDeleteProveedor();
   const { mutate: toggleActivo } = useToggleActivoProveedor();
+  const canManage = perfil?.rol === "administrador" || perfil?.rol === "almacen";
 
   const handleEdit = useCallback((p) => {
     setSelectedProveedor(p);
@@ -86,6 +89,7 @@ export function ProveedoresPage() {
         subtitle="Gestión de proveedores y consorcios del PAE"
         actions={
           <Button
+            disabled={!canManage}
             onClick={() => {
               setSelectedProveedor(null);
               setDrawerOpen(true);
@@ -142,7 +146,7 @@ export function ProveedoresPage() {
         loading={isLoading}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onToggleActivo={(p) => toggleActivo({ id: p.id, activo: !p.activo })}
+        onToggleActivo={(p) => canManage && toggleActivo({ id: p.id, activo: !p.activo })}
       />
 
       <TablePagination
@@ -160,6 +164,7 @@ export function ProveedoresPage() {
           if (!v) setSelectedProveedor(null);
         }}
         proveedor={selectedProveedor}
+        canManage={canManage}
       />
 
       <ProveedorDeleteDialog
