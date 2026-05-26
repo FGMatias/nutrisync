@@ -23,7 +23,7 @@ import {
 
 const PAGE_SIZE = 10;
 
-export default function ProveedoresPage() {
+export function ProveedoresPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
