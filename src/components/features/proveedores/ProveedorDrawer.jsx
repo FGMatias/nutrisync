@@ -99,6 +99,7 @@ export default function ProveedorDrawer({ open, onOpenChange, proveedor }) {
         </SheetHeader>
 
         <form
+          id="proveedor-form"
           onSubmit={handleSubmit(onSubmit)}
           style={{
             display: "flex",
@@ -211,13 +212,15 @@ export default function ProveedorDrawer({ open, onOpenChange, proveedor }) {
         >
           <Button
             variant="outline"
+            type="button"
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
             Cancelar
           </Button>
           <Button
-            onClick={handleSubmit(onSubmit)}
+            type="submit"
+            form="proveedor-form"
             disabled={isPending}
             style={{ background: "var(--primary)", color: "var(--primary-fg)" }}
           >
