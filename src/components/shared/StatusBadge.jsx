@@ -49,6 +49,38 @@ const STATUS_CONFIG = {
       border: "none",
     },
   },
+  estable: {
+    label: "Normal",
+    style: {
+      background: "var(--success-bg)",
+      color: "var(--success)",
+      border: "none",
+    },
+  },
+  stock_bajo: {
+    label: "Bajo mínimo",
+    style: {
+      background: "var(--warning-bg)",
+      color: "var(--warning)",
+      border: "none",
+    },
+  },
+  stock_alto: {
+    label: "Sobre máximo",
+    style: {
+      background: "var(--info-bg)",
+      color: "var(--info)",
+      border: "none",
+    },
+  },
+  sin_stock: {
+    label: "Sin stock",
+    style: {
+      background: "var(--danger-bg)",
+      color: "var(--danger)",
+      border: "none",
+    },
+  },
   pendiente: {
     label: "Pendiente",
     style: {
