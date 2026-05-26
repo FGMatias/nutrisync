@@ -37,6 +37,7 @@ export const TIPO_AJUSTE_STOCK = {
 export const UNIDADES_MEDIDA = [
   { value: "kg", label: "Kilogramos (kg)" },
   { value: "g", label: "Gramos (g)" },
+  { value: "tonelada", label: "Tonelada (t)" },
   { value: "l", label: "Litros (l)" },
   { value: "ml", label: "Mililitros (ml)" },
   { value: "unidad", label: "Unidad" },

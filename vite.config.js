@@ -13,4 +13,10 @@ export default defineConfig({
   //    host: "172.31.210.253",
   //    port: 5173,
   //  },
+  //server: {
+  //  host: "172.31.210.253",
+  //  port: 5173,
+    //host: "172.31.210.253",
+    //port: 5173,
+  //},
 });
