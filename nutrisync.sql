@@ -108,6 +108,63 @@ $$;
 ALTER FUNCTION "public"."ajustar_stock_producto"("p_id_producto" bigint, "p_delta" integer, "p_motivo" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."anular_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_motivo" "text" DEFAULT NULL::"text", "p_evidencias" "jsonb" DEFAULT NULL::"jsonb") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+declare
+  v_id_detalle_ingreso bigint;
+  v_id_ingreso bigint;
+  v_cantidad_esperada integer;
+  v_perfil_id bigint;
+begin
+  if not public.has_any_role(array['administrador', 'almacen', 'cae']) then
+    raise exception 'No tienes permisos para anular discrepancias.';
+  end if;
+
+  if p_id_discrepancia is null or p_id_discrepancia <= 0 then
+    raise exception 'Debes indicar una discrepancia valida.';
+  end if;
+
+  v_perfil_id := public.current_profile_id();
+
+  select d.id_detalle_ingreso, d.cantidad_esperada, di.id_ingreso
+  into v_id_detalle_ingreso, v_cantidad_esperada, v_id_ingreso
+  from public.discrepancias d
+  join public.detalle_ingresos di
+    on di.id = d.id_detalle_ingreso
+  where d.id = p_id_discrepancia;
+
+  if v_id_detalle_ingreso is null then
+    raise exception 'No existe la discrepancia seleccionada.';
+  end if;
+
+  update public.discrepancias
+  set
+    estado = 'anulada',
+    cantidad_recibida = v_cantidad_esperada,
+    motivo_anulacion = nullif(btrim(coalesce(p_motivo, '')), ''),
+    anulada_en = now(),
+    anulada_por = v_perfil_id,
+    evidencias = case
+      when p_evidencias is null then evidencias
+      else coalesce(evidencias, '[]'::jsonb) || p_evidencias
+    end,
+    actualizado_en = now()
+  where id = p_id_discrepancia;
+
+  update public.detalle_ingresos
+  set cantidad = v_cantidad_esperada
+  where id = v_id_detalle_ingreso;
+
+  perform public.recalcular_estado_ingreso_por_discrepancias(v_id_ingreso);
+end;
+$$;
+
+
+ALTER FUNCTION "public"."anular_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_motivo" "text", "p_evidencias" "jsonb") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."crear_perfil_desde_auth"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -240,6 +297,19 @@ $$;
 ALTER FUNCTION "public"."current_user_role"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."discrepancias_set_actualizado_en"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.actualizado_en := now();
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."discrepancias_set_actualizado_en"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."establecer_stock_producto"("p_id_producto" bigint, "p_cantidad" integer) RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -365,6 +435,46 @@ $$;
 
 
 ALTER FUNCTION "public"."has_any_role"("roles" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."recalcular_estado_ingreso_por_discrepancias"("p_id_ingreso" bigint) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+declare
+  v_estado_ingreso text;
+  v_activas integer := 0;
+begin
+  if p_id_ingreso is null then
+    return;
+  end if;
+
+  select estado::text
+  into v_estado_ingreso
+  from public.ingresos
+  where id = p_id_ingreso;
+
+  if v_estado_ingreso is null or v_estado_ingreso = 'anulado' then
+    return;
+  end if;
+
+  select count(*)
+  into v_activas
+  from public.discrepancias d
+  join public.detalle_ingresos di
+    on di.id = d.id_detalle_ingreso
+  where di.id_ingreso = p_id_ingreso
+    and d.estado = 'registrada';
+
+  update public.ingresos
+  set estado = case when v_activas > 0 then 'con_discrepancia' else 'conforme' end
+  where id = p_id_ingreso
+    and estado <> 'anulado';
+end;
+$$;
+
+
+ALTER FUNCTION "public"."recalcular_estado_ingreso_por_discrepancias"("p_id_ingreso" bigint) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."recalcular_stock_desde_ajustes_stock"() RETURNS "trigger"
@@ -532,6 +642,90 @@ $$;
 
 
 ALTER FUNCTION "public"."recalcular_stock_producto"("p_id_producto" bigint) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text" DEFAULT NULL::"text", "p_evidencias" "jsonb" DEFAULT '[]'::"jsonb") RETURNS bigint
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+declare
+  v_discrepancia_id bigint;
+  v_id_ingreso bigint;
+  v_cantidad_esperada integer;
+  v_estado_ingreso text;
+  v_perfil_id bigint;
+begin
+  if not public.has_any_role(array['administrador', 'almacen', 'cae']) then
+    raise exception 'No tienes permisos para registrar discrepancias.';
+  end if;
+
+  if p_id_detalle_ingreso is null or p_id_detalle_ingreso <= 0 then
+    raise exception 'Debes seleccionar un detalle de ingreso valido.';
+  end if;
+
+  if p_cantidad_recibida is null or p_cantidad_recibida < 0 then
+    raise exception 'La cantidad recibida debe ser mayor o igual a cero.';
+  end if;
+
+  v_perfil_id := public.current_profile_id();
+
+  select di.id_ingreso, di.cantidad, i.estado::text
+  into v_id_ingreso, v_cantidad_esperada, v_estado_ingreso
+  from public.detalle_ingresos di
+  join public.ingresos i
+    on i.id = di.id_ingreso
+  where di.id = p_id_detalle_ingreso;
+
+  if v_id_ingreso is null then
+    raise exception 'No existe el detalle de ingreso seleccionado.';
+  end if;
+
+  if v_estado_ingreso = 'anulado' then
+    raise exception 'No se puede registrar discrepancia en un ingreso anulado.';
+  end if;
+
+  if exists (
+    select 1
+    from public.discrepancias d
+    where d.id_detalle_ingreso = p_id_detalle_ingreso
+      and d.estado = 'registrada'
+  ) then
+    raise exception 'Ya existe una discrepancia activa para este producto/lote. Debes resolverla o anularla primero.';
+  end if;
+
+  insert into public.discrepancias (
+    id_detalle_ingreso,
+    cantidad_esperada,
+    cantidad_recibida,
+    observaciones,
+    estado,
+    evidencias,
+    creado_por
+  )
+  values (
+    p_id_detalle_ingreso,
+    v_cantidad_esperada,
+    p_cantidad_recibida,
+    nullif(btrim(coalesce(p_observaciones, '')), ''),
+    'registrada',
+    coalesce(p_evidencias, '[]'::jsonb),
+    v_perfil_id
+  )
+  returning id into v_discrepancia_id;
+
+  -- El stock vigente refleja la ultima discrepancia activa
+  update public.detalle_ingresos
+  set cantidad = p_cantidad_recibida
+  where id = p_id_detalle_ingreso;
+
+  perform public.recalcular_estado_ingreso_por_discrepancias(v_id_ingreso);
+
+  return v_discrepancia_id;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text", "p_evidencias" "jsonb") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean DEFAULT true, "p_origen" character varying DEFAULT 'online'::character varying, "p_observaciones" "text" DEFAULT NULL::"text") RETURNS bigint
@@ -803,6 +997,78 @@ $$;
 ALTER FUNCTION "public"."registrar_movimiento_trigger"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."resolver_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_cantidad_final" integer DEFAULT NULL::integer, "p_motivo" "text" DEFAULT NULL::"text", "p_evidencias" "jsonb" DEFAULT NULL::"jsonb") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+declare
+  v_id_detalle_ingreso bigint;
+  v_id_ingreso bigint;
+  v_estado text;
+  v_cantidad_esperada integer;
+  v_cantidad_final integer;
+  v_perfil_id bigint;
+begin
+  if not public.has_any_role(array['administrador', 'almacen', 'cae']) then
+    raise exception 'No tienes permisos para resolver discrepancias.';
+  end if;
+
+  if p_id_discrepancia is null or p_id_discrepancia <= 0 then
+    raise exception 'Debes indicar una discrepancia valida.';
+  end if;
+
+  v_perfil_id := public.current_profile_id();
+
+  select d.id_detalle_ingreso, d.estado::text, d.cantidad_esperada, di.id_ingreso
+  into v_id_detalle_ingreso, v_estado, v_cantidad_esperada, v_id_ingreso
+  from public.discrepancias d
+  join public.detalle_ingresos di
+    on di.id = d.id_detalle_ingreso
+  where d.id = p_id_discrepancia;
+
+  if v_id_detalle_ingreso is null then
+    raise exception 'No existe la discrepancia seleccionada.';
+  end if;
+
+  if v_estado = 'anulada' then
+    raise exception 'No puedes resolver una discrepancia anulada.';
+  end if;
+
+  v_cantidad_final := coalesce(p_cantidad_final, v_cantidad_esperada);
+
+  if v_cantidad_final < 0 then
+    raise exception 'La cantidad final no puede ser negativa.';
+  end if;
+
+  update public.discrepancias
+  set
+    estado = 'resuelta',
+    cantidad_recibida = v_cantidad_final,
+    motivo_resolucion = nullif(btrim(coalesce(p_motivo, '')), ''),
+    resuelta_en = now(),
+    resuelta_por = v_perfil_id,
+    evidencias = case
+      when p_evidencias is null then evidencias
+      else coalesce(evidencias, '[]'::jsonb) || p_evidencias
+    end,
+    motivo_anulacion = null,
+    anulada_en = null,
+    anulada_por = null,
+    actualizado_en = now()
+  where id = p_id_discrepancia;
+
+  update public.detalle_ingresos
+  set cantidad = v_cantidad_final
+  where id = v_id_detalle_ingreso;
+
+  perform public.recalcular_estado_ingreso_por_discrepancias(v_id_ingreso);
+end;
+$$;
+
+
+ALTER FUNCTION "public"."resolver_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_cantidad_final" integer, "p_motivo" "text", "p_evidencias" "jsonb") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."rls_auto_enable"() RETURNS "event_trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog'
@@ -1066,7 +1332,18 @@ CREATE TABLE IF NOT EXISTS "public"."discrepancias" (
     "diferencia" integer DEFAULT 0 NOT NULL,
     "observaciones" "text",
     "creado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "discrepancias_cantidades_check" CHECK ((("cantidad_esperada" >= 0) AND ("cantidad_recibida" >= 0)))
+    "estado" character varying(20) DEFAULT 'registrada'::character varying NOT NULL,
+    "evidencias" "jsonb" DEFAULT '[]'::"jsonb" NOT NULL,
+    "creado_por" bigint,
+    "actualizado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "motivo_resolucion" "text",
+    "resuelta_en" timestamp with time zone,
+    "resuelta_por" bigint,
+    "motivo_anulacion" "text",
+    "anulada_en" timestamp with time zone,
+    "anulada_por" bigint,
+    CONSTRAINT "discrepancias_cantidades_check" CHECK ((("cantidad_esperada" >= 0) AND ("cantidad_recibida" >= 0))),
+    CONSTRAINT "discrepancias_estado_check" CHECK ((("estado")::"text" = ANY ((ARRAY['registrada'::character varying, 'resuelta'::character varying, 'anulada'::character varying])::"text"[])))
 );
 
 
@@ -1499,11 +1776,6 @@ ALTER TABLE ONLY "public"."detalle_ingresos"
 
 
 ALTER TABLE ONLY "public"."discrepancias"
-    ADD CONSTRAINT "discrepancias_id_detalle_ingreso_key" UNIQUE ("id_detalle_ingreso");
-
-
-
-ALTER TABLE ONLY "public"."discrepancias"
     ADD CONSTRAINT "discrepancias_pkey" PRIMARY KEY ("id");
 
 
@@ -1597,6 +1869,10 @@ CREATE INDEX "idx_checklist_items_checklist" ON "public"."checklist_recepcion_it
 
 
 CREATE INDEX "idx_detalle_ingresos_producto" ON "public"."detalle_ingresos" USING "btree" ("id_producto");
+
+
+
+CREATE INDEX "idx_discrepancias_detalle_estado_creado" ON "public"."discrepancias" USING "btree" ("id_detalle_ingreso", "estado", "creado_en" DESC);
 
 
 
@@ -1712,6 +1988,10 @@ CREATE OR REPLACE TRIGGER "trigger_crear_stock_inicial" AFTER INSERT ON "public"
 
 
 
+CREATE OR REPLACE TRIGGER "trigger_discrepancias_set_actualizado_en" BEFORE UPDATE ON "public"."discrepancias" FOR EACH ROW EXECUTE FUNCTION "public"."discrepancias_set_actualizado_en"();
+
+
+
 CREATE OR REPLACE TRIGGER "trigger_generar_codigo_matricula_alumno" BEFORE INSERT ON "public"."alumnos" FOR EACH ROW EXECUTE FUNCTION "public"."generar_codigo_matricula_alumno"();
 
 
@@ -1815,7 +2095,22 @@ ALTER TABLE ONLY "public"."detalle_ingresos"
 
 
 ALTER TABLE ONLY "public"."discrepancias"
+    ADD CONSTRAINT "discrepancias_anulada_por_fkey" FOREIGN KEY ("anulada_por") REFERENCES "public"."perfiles"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."discrepancias"
+    ADD CONSTRAINT "discrepancias_creado_por_fkey" FOREIGN KEY ("creado_por") REFERENCES "public"."perfiles"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."discrepancias"
     ADD CONSTRAINT "discrepancias_id_detalle_ingreso_fkey" FOREIGN KEY ("id_detalle_ingreso") REFERENCES "public"."detalle_ingresos"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."discrepancias"
+    ADD CONSTRAINT "discrepancias_resuelta_por_fkey" FOREIGN KEY ("resuelta_por") REFERENCES "public"."perfiles"("id") ON DELETE SET NULL;
 
 
 
@@ -2231,6 +2526,12 @@ GRANT ALL ON FUNCTION "public"."ajustar_stock_producto"("p_id_producto" bigint, 
 
 
 
+GRANT ALL ON FUNCTION "public"."anular_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_motivo" "text", "p_evidencias" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."anular_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_motivo" "text", "p_evidencias" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."anular_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_motivo" "text", "p_evidencias" "jsonb") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."crear_perfil_desde_auth"() TO "anon";
 GRANT ALL ON FUNCTION "public"."crear_perfil_desde_auth"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."crear_perfil_desde_auth"() TO "service_role";
@@ -2258,6 +2559,12 @@ GRANT ALL ON FUNCTION "public"."current_profile_id"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."current_user_role"() TO "anon";
 GRANT ALL ON FUNCTION "public"."current_user_role"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."current_user_role"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."discrepancias_set_actualizado_en"() TO "anon";
+GRANT ALL ON FUNCTION "public"."discrepancias_set_actualizado_en"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."discrepancias_set_actualizado_en"() TO "service_role";
 
 
 
@@ -2291,6 +2598,12 @@ GRANT ALL ON FUNCTION "public"."has_any_role"("roles" "text"[]) TO "service_role
 
 
 
+GRANT ALL ON FUNCTION "public"."recalcular_estado_ingreso_por_discrepancias"("p_id_ingreso" bigint) TO "anon";
+GRANT ALL ON FUNCTION "public"."recalcular_estado_ingreso_por_discrepancias"("p_id_ingreso" bigint) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."recalcular_estado_ingreso_por_discrepancias"("p_id_ingreso" bigint) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."recalcular_stock_desde_ajustes_stock"() TO "anon";
 GRANT ALL ON FUNCTION "public"."recalcular_stock_desde_ajustes_stock"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."recalcular_stock_desde_ajustes_stock"() TO "service_role";
@@ -2321,6 +2634,12 @@ GRANT ALL ON FUNCTION "public"."recalcular_stock_producto"("p_id_producto" bigin
 
 
 
+GRANT ALL ON FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text", "p_evidencias" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text", "p_evidencias" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text", "p_evidencias" "jsonb") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "service_role";
@@ -2336,6 +2655,12 @@ GRANT ALL ON FUNCTION "public"."registrar_ingreso_producto"("p_id_proveedor" big
 GRANT ALL ON FUNCTION "public"."registrar_movimiento_trigger"() TO "anon";
 GRANT ALL ON FUNCTION "public"."registrar_movimiento_trigger"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."registrar_movimiento_trigger"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."resolver_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_cantidad_final" integer, "p_motivo" "text", "p_evidencias" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."resolver_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_cantidad_final" integer, "p_motivo" "text", "p_evidencias" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."resolver_discrepancia_ingreso"("p_id_discrepancia" bigint, "p_cantidad_final" integer, "p_motivo" "text", "p_evidencias" "jsonb") TO "service_role";
 
 
 
