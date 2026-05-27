@@ -1,4 +1,24 @@
 import { supabase } from "../lib/supabase";
+import { offlineDb } from "../lib/offline-db";
+
+async function syncCachedAlumnos(alumnos) {
+  if (!Array.isArray(alumnos)) return;
+
+  await offlineDb.alumnosCache.bulkPut(
+    alumnos.map((alumno) => ({
+      id: Number(alumno.id),
+      nombre: alumno.nombre,
+      apellido: alumno.apellido,
+      dni: alumno.dni,
+      grado: alumno.grado,
+      seccion: alumno.seccion,
+      codigo_qr: alumno.codigo_qr,
+      activo: Boolean(alumno.activo),
+      creado_en: alumno.creado_en ?? null,
+      actualizado_en: alumno.actualizado_en ?? null,
+    })),
+  );
+}
 
 export async function getAlumnos() {
   let query = supabase
@@ -8,6 +28,7 @@ export async function getAlumnos() {
 
   const { data, error } = await query;
   if (error) throw error;
+  await syncCachedAlumnos(data ?? []);
   return data;
 }
 
@@ -28,6 +49,7 @@ export async function createAlumno(payload) {
     .select()
     .single();
   if (error) throw error;
+  await syncCachedAlumnos(data ? [data] : []);
   return data;
 }
 
@@ -39,6 +61,7 @@ export async function updateAlumno(id, payload) {
     .select()
     .single();
   if (error) throw error;
+  await syncCachedAlumnos(data ? [data] : []);
   return data;
 }
 
@@ -50,5 +73,6 @@ export async function toggleActivoAlumno(id, activo) {
     .select()
     .single();
   if (error) throw error;
+  await syncCachedAlumnos(data ? [data] : []);
   return data;
 }

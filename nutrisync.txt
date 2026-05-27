@@ -1037,6 +1037,7 @@ CREATE TABLE IF NOT EXISTS "public"."detalle_ingresos" (
     "fecha_vencimiento" "date",
     "qr_lote" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "creado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "unidad_medida" character varying(20) DEFAULT 'kg'::character varying NOT NULL,
     CONSTRAINT "detalle_ingresos_cantidad_check" CHECK ((("cantidad" > 0) AND ("peso_kg" >= (0)::numeric)))
 );
 
