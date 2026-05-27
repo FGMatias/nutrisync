@@ -17,7 +17,7 @@ function getNowParts() {
   };
 }
 
-function getLocalDateKey(dateLike) {
+export function getLocalDateKey(dateLike) {
   const date = new Date(dateLike);
   if (Number.isNaN(date.getTime())) {
     return "";
@@ -29,7 +29,7 @@ function getLocalDateKey(dateLike) {
   return `${year}-${month}-${day}`;
 }
 
-function getTimestamp(dateLike, fallbackFecha = "", fallbackHora = "") {
+export function getTimestamp(dateLike, fallbackFecha = "", fallbackHora = "") {
   const primary = new Date(dateLike);
   if (!Number.isNaN(primary.getTime())) {
     return primary.getTime();
@@ -47,7 +47,7 @@ function getTimestamp(dateLike, fallbackFecha = "", fallbackHora = "") {
   return fallback.getTime();
 }
 
-function buildAlumnoNombre(alumno = {}) {
+export function buildAlumnoNombre(alumno = {}) {
   return [alumno.nombre, alumno.apellido].filter(Boolean).join(" ").trim();
 }
 
@@ -106,7 +106,7 @@ function mapPendingDistribucion(row) {
   });
 }
 
-function sortDistribuciones(items) {
+export function sortDistribuciones(items) {
   return [...items].sort((a, b) => {
     const left = Number(a.timestamp ?? 0);
     const right = Number(b.timestamp ?? 0);
@@ -124,7 +124,7 @@ function isConnectivityError(error) {
   );
 }
 
-function isDuplicateDistribucionError(error) {
+export function isDuplicateDistribucionError(error) {
   return (
     error?.code === "23505" ||
     String(error?.message ?? "").toLowerCase().includes("duplicate") ||

@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { jsPDF } from "jspdf";
 
-function formatCantidad(value) {
+export function formatCantidad(value) {
   const number = Number(value ?? 0);
   if (!Number.isFinite(number)) return "0";
   return new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(number);
