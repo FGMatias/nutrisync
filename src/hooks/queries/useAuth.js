@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { parseAuthError } from "../../lib/auth-errors";
 import { signIn, signOut } from "../../services/auth.service";
 import { useAuthStore } from "../../stores/authStore";
@@ -23,7 +23,15 @@ export function useSignIn() {
 }
 
 export function useSignOut() {
+  const queryCliente = useQueryClient();
+
   return useMutation({
     mutationFn: signOut,
+    onSuccess: () => {
+      queryCliente.clear();
+    },
+    onError: (error) => {
+      console.error("SignOut error:", error);
+    },
   });
 }
