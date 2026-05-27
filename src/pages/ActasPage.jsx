@@ -19,8 +19,8 @@ import {
   useActasRecepcion,
   useGenerarActaRecepcion,
 } from "../hooks/queries/useActas";
+import { useAuth } from "../hooks/queries/useAuth";
 import { getActaFirmadaUrl } from "../services/actas.service";
-import { useAuthStore } from "../stores/authStore";
 import { buildActaPdf, triggerDownload } from "../utils/actasPdf";
 
 const PAGE_SIZE = 10;
@@ -54,7 +54,8 @@ export default function ActasPage() {
   const { data: actas = [], isLoading } = useActasRecepcion();
   const { data: ingresos = [] } = useIngresos();
   const { mutateAsync: generarActa } = useGenerarActaRecepcion();
-  const perfilNombre = useAuthStore((state) => state.perfil?.nombre_completo);
+  const { perfil } = useAuth();
+  const perfilNombre = perfil?.nombre_completo;
 
   const actasPorIngreso = useMemo(() => {
     const map = new Map();

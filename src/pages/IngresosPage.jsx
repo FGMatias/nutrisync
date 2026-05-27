@@ -58,7 +58,7 @@ import {
   ingresoFormDefaultValues,
   ingresoSchema,
 } from "../schemas/ingreso.schema";
-import { useAuthStore } from "../stores/authStore";
+import { useAuth } from "../hooks/queries/useAuth";
 import { getActaFirmadaUrl } from "../services/actas.service";
 import { buildActaPdf, triggerDownload } from "../utils/actasPdf";
 
@@ -165,7 +165,8 @@ export default function IngresosPage() {
   const { mutate: createIngreso, isPending: isSaving } = useCreateIngreso();
   const { mutate: anularIngreso, isPending: isAnulando } = useAnularIngreso();
   const { mutateAsync: generarActaIngreso } = useGenerarActaIngreso();
-  const perfilNombre = useAuthStore((state) => state.perfil?.nombre_completo);
+  const { perfil } = useAuth();
+  const perfilNombre = perfil?.nombre_completo;
 
   const proveedores = proveedoresData?.data ?? [];
   const activeFilters =
