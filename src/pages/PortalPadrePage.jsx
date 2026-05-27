@@ -1,8 +1,7 @@
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CheckCircle2, LogOut } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth, useSignOut } from '../hooks/queries/useAuth'
+import { useSignOut } from '../hooks/queries/useAuth'
 import { Button } from '../components/ui/button'
 
 const alumnoMock = {
@@ -30,12 +29,7 @@ const historial = [
 const entregadoHoy = historial[0].entregado
 
 export default function PortalPadrePage() {
-  const navigate = useNavigate()
   const { mutate: signOut } = useSignOut()
-
-  const handleLogout = () => {
-    signOut(undefined, { onSuccess: () => navigate('/login', { replace: true }) })
-  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' }}>
@@ -50,7 +44,7 @@ export default function PortalPadrePage() {
             <p style={{ fontSize: 11, color: 'var(--muted-fg)', margin: 0 }}>Portal de Padres</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <Button variant="ghost" size="sm" onClick={() => signOut()}>
           <LogOut size={14} style={{ marginRight: 4 }} /> Cerrar sesión
         </Button>
       </header>

@@ -1,48 +1,41 @@
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabase";
-import { getPerfilByAuthId } from "../services/auth.service";
-import { useAuthStore } from "../stores/authStore";
+import { SESSION_QUERY_KEY } from "../hooks/queries/useAuth";
 
 export default function AuthProvider({ children }) {
-  const { setSession, clearSession } = useAuthStore();
+  const qc = useQueryClient();
 
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION: useSession's queryFn already calls getSession() on mount.
+      // Reacting here would cause a redundant double-fetch on startup.
+      if (event === "INITIAL_SESSION") return;
+
       if (event === "SIGNED_OUT" || !session) {
-        clearSession();
+        qc.setQueryData(SESSION_QUERY_KEY, null);
         return;
       }
 
-      // Token rotated — session still valid, keep the existing perfil in store.
-      // Re-fetching the profile here is what causes the RLS collision storm on
-      // window focus: the new token isn't committed to the client yet when the
-      // DB call fires, so it fails → clearSession() wipes the store mid-session.
       if (event === "TOKEN_REFRESHED") {
-        const { perfil } = useAuthStore.getState();
-        if (perfil) {
-          setSession(session.user, perfil);
-        }
+        // The JWT rotated but the perfil hasn't changed. Update only the
+        // user object in the cached session to avoid a needless DB round-trip.
+        // This is what previously triggered the RLS collision: an async perfil
+        // fetch that could fail mid-rotation and wipe the session from state.
+        qc.setQueryData(SESSION_QUERY_KEY, (old) =>
+          old ? { ...old, user: session.user } : old,
+        );
         return;
       }
 
-      // INITIAL_SESSION / SIGNED_IN: fetch the profile once.
-      try {
-        const perfil = await getPerfilByAuthId(session.user.id);
-        if (!perfil?.activo) {
-          await supabase.auth.signOut();
-          clearSession();
-          return;
-        }
-        setSession(session.user, perfil);
-      } catch {
-        clearSession();
-      }
+      // SIGNED_IN, USER_UPDATED: re-fetch session + perfil from scratch.
+      qc.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
     });
 
     return () => subscription.unsubscribe();
-  }, [setSession, clearSession]);
+  }, [qc]);
 
   return children;
 }

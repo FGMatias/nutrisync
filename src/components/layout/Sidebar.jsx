@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Building2, PackagePlus, Boxes, Users, QrCode,
   Utensils, Truck, BarChart3, FileText, AlertTriangle, Tag, UserCog,
@@ -25,7 +25,6 @@ function getInitials(name = '') {
 
 export default function Sidebar() {
   const { perfil } = useAuth()
-  const navigate = useNavigate()
   const { mutate: signOut } = useSignOut()
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -40,11 +39,7 @@ export default function Sidebar() {
     (item) => !perfil?.rol || item.roles.includes(perfil.rol)
   )
 
-  const handleLogout = () => {
-    signOut(undefined, {
-      onSuccess: () => navigate('/login', { replace: true }),
-    })
-  }
+  const handleLogout = () => signOut()
 
   const sidebarWidth = collapsed ? 64 : 240
 
