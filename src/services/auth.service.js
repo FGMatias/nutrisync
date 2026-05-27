@@ -1,5 +1,4 @@
 import { supabase } from "../lib/supabase";
-import { useAuthStore } from "../stores/authStore";
 
 export async function signIn({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -31,10 +30,7 @@ export async function getPerfilByAuthId(authId) {
   return data;
 }
 
-export async function getCurrentPerfilId() {
-  const storedPerfil = useAuthStore.getState().perfil;
-  if (storedPerfil?.id) return storedPerfil.id;
-
+export async function getCurrentPerfil() {
   const session = await getCurrentSession();
   if (!session?.user?.id) {
     throw new Error("No hay una sesion activa.");
@@ -45,5 +41,10 @@ export async function getCurrentPerfilId() {
     throw new Error("No se encontro el perfil activo del usuario.");
   }
 
+  return perfil;
+}
+
+export async function getCurrentPerfilId() {
+  const perfil = await getCurrentPerfil();
   return perfil.id;
 }
