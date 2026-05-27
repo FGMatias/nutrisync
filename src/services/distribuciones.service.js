@@ -1,8 +1,7 @@
 import { parseAlumnoQrPayload } from "../lib/alumnos-qr";
 import { offlineDb } from "../lib/offline-db";
 import { supabase } from "../lib/supabase";
-import { getCurrentPerfilId } from "./auth.service";
-import { useAuthStore } from "../stores/authStore";
+import { getCurrentPerfil } from "./auth.service";
 
 function getNowParts() {
   const now = new Date();
@@ -313,8 +312,8 @@ export async function registerDistribucionFromQr(rawValue) {
     throw new Error("QR denegado. Los datos del alumno no coinciden.");
   }
 
-  const docenteId = await getCurrentPerfilId();
-  const perfil = useAuthStore.getState().perfil;
+  const perfil = await getCurrentPerfil();
+  const docenteId = perfil.id;
   const now = getNowParts();
 
   const baseRecord = {
