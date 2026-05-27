@@ -2,12 +2,11 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { AlertTriangle, PackagePlus, QrCode, Users } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { DASHBOARD_MOCK } from '../mock/dashboard.mock'
-import { MOVIMIENTOS_MOCK } from '../mock/movimientos.mock'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Progress } from '../components/ui/progress'
 import { Badge } from '../components/ui/badge'
 import PageHeader from '../components/shared/PageHeader'
+import { useDashboard } from '../hooks/queries/useDashboard'
 
 function StatCard({ title, value, subtitle, icon: Icon, iconColor, children }) {
   return (
@@ -40,9 +39,26 @@ const TIPO_LABELS = {
 }
 
 export default function DashboardPage() {
-  const d = DASHBOARD_MOCK
+  const { data, isLoading } = useDashboard()
+  const d = data ?? {
+    totalAlumnos: 0,
+    alumnosConDistribucionHoy: 0,
+    porcentajeCobertura: 0,
+    productosConStockBajo: 0,
+    ingresosEsteMes: 0,
+    distribucionesHoy: 0,
+    distribucionesEstaSemanaPorDia: [
+      { dia: "Lun", cantidad: 0 },
+      { dia: "Mar", cantidad: 0 },
+      { dia: "Mie", cantidad: 0 },
+      { dia: "Jue", cantidad: 0 },
+      { dia: "Vie", cantidad: 0 },
+    ],
+    alertasStock: [],
+    ultimosMovimientos: [],
+  }
   const hoy = format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es })
-  const ultimosMovimientos = MOVIMIENTOS_MOCK.slice(0, 5)
+  const ultimosMovimientos = d.ultimosMovimientos ?? []
 
   return (
     <div>
@@ -78,7 +94,7 @@ export default function DashboardPage() {
         <StatCard
           title="Ingresos este mes"
           value={d.ingresosEsteMes}
-          subtitle="Último: hace 2 días"
+          subtitle={isLoading ? "Cargando..." : "Incluye solo ingresos no anulados"}
           icon={PackagePlus}
           iconColor="hsl(210,55%,42%)"
         />
@@ -86,7 +102,7 @@ export default function DashboardPage() {
         <StatCard
           title="Distribuciones hoy"
           value={d.distribucionesHoy}
-          subtitle="Actualizado: 13:45"
+          subtitle={isLoading ? "Cargando..." : "Registradas hasta el momento"}
           icon={QrCode}
           iconColor="hsl(142,60%,30%)"
         />
@@ -133,6 +149,11 @@ export default function DashboardPage() {
                   />
                 </div>
               ))}
+              {!isLoading && d.alertasStock.length === 0 && (
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted-fg)' }}>
+                  No hay productos por debajo del stock mínimo.
+                </p>
+              )}
             </div>
             <button
               style={{ marginTop: 16, fontSize: 12, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -173,6 +194,13 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ))}
+              {!isLoading && ultimosMovimientos.length === 0 && (
+                <tr style={{ borderBottom: '1px solid var(--border)', height: 48 }}>
+                  <td colSpan={4} style={{ padding: '0 16px', fontSize: 12, color: 'var(--muted-fg)' }}>
+                    No hay movimientos recientes para mostrar.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>

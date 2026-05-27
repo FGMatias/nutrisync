@@ -8,6 +8,7 @@ import {
 import { NAV_ITEMS } from '../../constants/nav'
 import { useAuth, useSignOut } from '../../hooks/queries/useAuth'
 import { ROLE_LABELS } from '../../constants/roles'
+import ConfirmDialog from '../shared/ConfirmDialog'
 
 const ICON_MAP = {
   LayoutDashboard, Building2, PackagePlus, Boxes, Users, QrCode,
@@ -26,7 +27,8 @@ function getInitials(name = '') {
 export default function Sidebar() {
   const { perfil } = useAuth()
   const navigate = useNavigate()
-  const { mutate: signOut } = useSignOut()
+  const { mutate: signOut, isPending: isSigningOut } = useSignOut()
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
 
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem('nutrisync-sidebar') === 'true'
@@ -41,9 +43,7 @@ export default function Sidebar() {
   )
 
   const handleLogout = () => {
-    signOut(undefined, {
-      onSuccess: () => navigate('/login', { replace: true }),
-    })
+    setLogoutDialogOpen(true)
   }
 
   const sidebarWidth = collapsed ? 64 : 240
@@ -184,6 +184,21 @@ export default function Sidebar() {
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        title="¿Cerrar sesión?"
+        description="Estás a punto de cerrar tu sesión actual. Si tienes cambios no guardados, podrías perderlos."
+        onConfirm={() =>
+          signOut(undefined, {
+            onSuccess: () => navigate('/login', { replace: true }),
+          })
+        }
+        loading={isSigningOut}
+        variant="danger"
+        confirmLabel="Sí, cerrar sesión"
+      />
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CheckCircle2, LogOut } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useSignOut } from '../hooks/queries/useAuth'
+import ConfirmDialog from '../components/shared/ConfirmDialog'
 import { Button } from '../components/ui/button'
 
 const alumnoMock = {
@@ -31,10 +33,11 @@ const entregadoHoy = historial[0].entregado
 
 export default function PortalPadrePage() {
   const navigate = useNavigate()
-  const { mutate: signOut } = useSignOut()
+  const { mutate: signOut, isPending: isSigningOut } = useSignOut()
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
 
   const handleLogout = () => {
-    signOut(undefined, { onSuccess: () => navigate('/login', { replace: true }) })
+    setLogoutDialogOpen(true)
   }
 
   return (
@@ -124,6 +127,21 @@ export default function PortalPadrePage() {
       <footer style={{ textAlign: 'center', padding: '16px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--muted-fg)' }}>
         Chasquis · Sistema de Alimentación Escolar PAE · IE 8060 Los Chasquis
       </footer>
+
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        title="¿Cerrar sesión?"
+        description="Estás a punto de cerrar tu sesión actual. Si tienes cambios no guardados, podrías perderlos."
+        onConfirm={() =>
+          signOut(undefined, {
+            onSuccess: () => navigate('/login', { replace: true }),
+          })
+        }
+        loading={isSigningOut}
+        variant="danger"
+        confirmLabel="Sí, cerrar sesión"
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NAV_ITEMS } from "../../constants/nav";
 import { useAuth, useSignOut } from "../../hooks/queries/useAuth";
+import ConfirmDialog from "../shared/ConfirmDialog";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -32,7 +33,8 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { perfil } = useAuth();
-  const { mutate: signOut } = useSignOut();
+  const { mutate: signOut, isPending: isSigningOut } = useSignOut();
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
@@ -119,11 +121,7 @@ export default function Header() {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() =>
-                signOut(undefined, {
-                  onSuccess: () => navigate("/login", { replace: true }),
-                })
-              }
+              onClick={() => setLogoutDialogOpen(true)}
               style={{ color: "var(--danger)", cursor: "pointer" }}
             >
               <LogOut size={14} className="mr-2" />
@@ -132,6 +130,21 @@ export default function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        title="¿Cerrar sesión?"
+        description="Estás a punto de cerrar tu sesión actual. Si tienes cambios no guardados, podrías perderlos."
+        onConfirm={() =>
+          signOut(undefined, {
+            onSuccess: () => navigate("/login", { replace: true }),
+          })
+        }
+        loading={isSigningOut}
+        variant="danger"
+        confirmLabel="Sí, cerrar sesión"
+      />
     </header>
   );
 }
