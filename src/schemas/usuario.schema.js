@@ -20,6 +20,4 @@ const base = z.object({
 
 export const usuarioSchema = base;
 
-export const usuarioCreateSchema = base.extend({
-  password: z.string().min(8, "Mínimo 8 caracteres"),
-});
+export const usuarioCreateSchema = base;

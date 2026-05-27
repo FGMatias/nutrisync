@@ -8,7 +8,7 @@ export async function getUsuarios({
   activo,
 } = {}) {
   let query = supabase
-    .from("perfiles")
+    .from("v_usuarios")
     .select("*", { count: "exact" })
     .order("creado_en", { ascending: false });
 
@@ -30,7 +30,7 @@ export async function getUsuarios({
 
 export async function getUsuarioById(id) {
   const { data, error } = await supabase
-    .from("perfiles")
+    .from("v_usuarios")
     .select("*")
     .eq("id", id)
     .single();
@@ -40,7 +40,6 @@ export async function getUsuarioById(id) {
 
 export async function createUsuario({
   email,
-  password,
   nombre_completo,
   dni,
   telefono,
@@ -48,27 +47,15 @@ export async function createUsuario({
   activo,
   id_alumno,
 }) {
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { nombre_completo, rol } },
+  const { data, error } = await supabase.rpc("crear_usuario_completo", {
+    p_email: email,
+    p_nombre_completo: nombre_completo,
+    p_dni: dni || null,
+    p_telefono: telefono || null,
+    p_rol: rol,
+    p_activo: activo,
+    p_id_alumno: id_alumno || null,
   });
-  if (authError) throw authError;
-
-  const { data, error } = await supabase
-    .from("perfiles")
-    .insert({
-      id_usuario_auth: authData.user.id,
-      email,
-      nombre_completo,
-      dni: dni || null,
-      telefono: telefono || null,
-      rol,
-      activo,
-      id_alumno: id_alumno || null,
-    })
-    .select()
-    .single();
   if (error) throw error;
   return data;
 }
