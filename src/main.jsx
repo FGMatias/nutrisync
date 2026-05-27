@@ -10,7 +10,13 @@ import { router } from "./routes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 60_000, retry: 1 },
+    queries: {
+      staleTime: 60_000,
+      retry: 1,
+      // Prevent mass refetch storm on window focus from colliding with
+      // Supabase's simultaneous TOKEN_REFRESHED cycle.
+      refetchOnWindowFocus: false,
+    },
   },
 });
 
