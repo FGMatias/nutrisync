@@ -1,7 +1,8 @@
-import { Bell, LogOut, Moon, Sun } from "lucide-react";
+import { Bell, LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NAV_ITEMS } from "../../constants/nav";
+import { useMobile } from "../../hooks/useMobile";
 import { useAuth, useSignOut } from "../../hooks/queries/useAuth";
 import ConfirmDialog from "../shared/ConfirmDialog";
 import { Button } from "../ui/button";
@@ -29,10 +30,11 @@ function getInitials(name = "") {
   );
 }
 
-export default function Header() {
+export default function Header({ onMenuToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { perfil } = useAuth();
+  const { isMobile, isTablet } = useMobile();
   const { mutate: signOut, isPending: isSigningOut } = useSignOut();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [dark, setDark] = useState(() =>
@@ -53,15 +55,39 @@ export default function Header() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 24px",
+        padding: "0 16px",
         flexShrink: 0,
+        gap: 8,
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 500, color: "var(--fg)" }}>
-        {getPageLabel(location.pathname)}
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        {/* Hamburger visible en mobile y tablet */}
+        {(isMobile || isTablet) && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onMenuToggle}
+            title="Abrir menú"
+            style={{ flexShrink: 0 }}
+          >
+            <Menu size={18} />
+          </Button>
+        )}
+        <span
+          style={{
+            fontSize: 14,
+            fontWeight: 500,
+            color: "var(--fg)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {getPageLabel(location.pathname)}
+        </span>
+      </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
         <Button
           variant="ghost"
           size="icon"
@@ -105,6 +131,7 @@ export default function Header() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                flexShrink: 0,
               }}
             >
               {getInitials(perfil?.nombre_completo)}
@@ -112,10 +139,10 @@ export default function Header() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" style={{ minWidth: 160 }}>
             <div style={{ padding: "8px 12px" }}>
-              <p style={{ fontSize: 12, fontWeight: 500 }}>
+              <p style={{ fontSize: 12, fontWeight: 500, margin: 0 }}>
                 {perfil?.nombre_completo}
               </p>
-              <p style={{ fontSize: 11, color: "var(--muted-fg)" }}>
+              <p style={{ fontSize: 11, color: "var(--muted-fg)", margin: 0 }}>
                 {perfil?.rol}
               </p>
             </div>

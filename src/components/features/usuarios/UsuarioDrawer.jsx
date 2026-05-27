@@ -70,7 +70,6 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
               dni: "",
               telefono: "",
               rol: "",
-              password: "",
               activo: true,
               id_alumno: null,
             },
@@ -80,7 +79,7 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
 
   const onSubmit = (values) => {
     if (isEdit) {
-      const { email: _email, password: _pw, ...rest } = values;
+      const { email: _email, ...rest } = values;
       update(
         { id: usuario.id, data: rest },
         { onSuccess: () => onOpenChange(false) },
@@ -124,14 +123,26 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
           </div>
 
           <div>
-            <Label>Correo electrónico *</Label>
+            <Label>Correo electrónico {!isEdit && "*"}</Label>
             <Input
               {...register("email")}
               type="email"
               placeholder="usuario@ie8060.edu.pe"
-              disabled={isEdit}
-              style={{ marginTop: 4, opacity: isEdit ? 0.6 : 1 }}
+              readOnly={isEdit}
+              style={{
+                marginTop: 4,
+                ...(isEdit && {
+                  background: "var(--muted)",
+                  cursor: "default",
+                  color: "var(--muted-fg)",
+                }),
+              }}
             />
+            {isEdit && (
+              <p style={{ fontSize: 11, color: "var(--muted-fg)", marginTop: 2 }}>
+                El correo no puede modificarse desde aquí.
+              </p>
+            )}
             {fieldError("email")}
           </div>
 
@@ -179,20 +190,6 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
             </Select>
             {fieldError("rol")}
           </div>
-
-          {!isEdit && (
-            <div>
-              <Label>Contraseña temporal *</Label>
-              <Input
-                {...register("password")}
-                type="password"
-                placeholder="Mínimo 8 caracteres"
-                autoComplete="new-password"
-                style={{ marginTop: 4 }}
-              />
-              {fieldError("password")}
-            </div>
-          )}
 
           {watchRol === ROLES.PADRE_FAMILIA && (
             <div>

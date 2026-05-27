@@ -55,33 +55,53 @@ function getInitials(name = "") {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ isMobile, isTablet, mobileOpen, onMobileClose }) {
   const { perfil } = useAuth();
   const navigate = useNavigate();
   const { mutate: signOut, isPending: isSigningOut } = useSignOut();
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   const [collapsed, setCollapsed] = useState(() => {
+    if (isTablet) return true;
     return localStorage.getItem("nutrisync-sidebar") === "true";
   });
 
+  // Auto-colapsar al entrar a tablet, restaurar al volver a desktop
   useEffect(() => {
-    localStorage.setItem("nutrisync-sidebar", String(collapsed));
-  }, [collapsed]);
+    if (isTablet) setCollapsed(true);
+  }, [isTablet]);
+
+  useEffect(() => {
+    if (!isMobile && !isTablet) {
+      localStorage.setItem("nutrisync-sidebar", String(collapsed));
+    }
+  }, [collapsed, isMobile, isTablet]);
 
   const filteredNav = NAV_ITEMS.filter(
     (item) => !perfil?.rol || item.roles.includes(perfil.rol),
   );
 
-  const handleLogout = () => {
-    setLogoutDialogOpen(true);
-  };
+  // En mobile: drawer off-canvas (siempre expandido, slide in/out)
+  // En tablet/desktop: sidebar fijo con colapso por icono
+  const isDrawer = isMobile || isTablet;
+  const sidebarWidth = isDrawer ? 240 : collapsed ? 64 : 240;
 
-  const sidebarWidth = collapsed ? 64 : 240;
-
-  return (
-    <div
-      style={{
+  const sidebarStyle = isDrawer
+    ? {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        bottom: 0,
+        width: 240,
+        zIndex: 50,
+        transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.25s ease",
+        background: "var(--sidebar-bg)",
+        borderRight: "1px solid var(--sidebar-border)",
+        display: "flex",
+        flexDirection: "column",
+      }
+    : {
         width: sidebarWidth,
         minWidth: sidebarWidth,
         background: "var(--sidebar-bg)",
@@ -90,20 +110,25 @@ export default function Sidebar() {
         flexDirection: "column",
         transition: "width 0.2s ease, min-width 0.2s ease",
         overflow: "hidden",
-      }}
-    >
+      };
+
+  const showLabels = isDrawer ? true : !collapsed;
+
+  return (
+    <div style={sidebarStyle}>
       <div
         style={{
           height: 56,
           display: "flex",
           alignItems: "center",
-          justifyContent: collapsed ? "center" : "space-between",
-          padding: collapsed ? "0 12px" : "0 12px 0 16px",
+          justifyContent: showLabels ? "space-between" : "center",
+          padding: showLabels ? "0 12px 0 16px" : "0 12px",
           borderBottom: "1px solid var(--sidebar-border)",
           gap: 8,
+          flexShrink: 0,
         }}
       >
-        {!collapsed && (
+        {showLabels && (
           <span
             style={{
               fontWeight: 700,
@@ -115,8 +140,9 @@ export default function Sidebar() {
             NutriSync
           </span>
         )}
+        {/* En drawer mobile/tablet: botón de cerrar. En desktop: colapsar */}
         <button
-          onClick={() => setCollapsed((v) => !v)}
+          onClick={isDrawer ? onMobileClose : () => setCollapsed((v) => !v)}
           style={{
             background: "none",
             border: "none",
@@ -127,9 +153,9 @@ export default function Sidebar() {
             padding: 4,
             borderRadius: 4,
           }}
-          title={collapsed ? "Expandir" : "Colapsar"}
+          title={isDrawer ? "Cerrar" : collapsed ? "Expandir" : "Colapsar"}
         >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          <ChevronLeft size={16} />
         </button>
       </div>
 
@@ -138,13 +164,14 @@ export default function Sidebar() {
           <NavLink
             key={item.key}
             to={item.href}
-            title={collapsed ? item.label : undefined}
+            title={!showLabels ? item.label : undefined}
+            onClick={isDrawer ? onMobileClose : undefined}
             style={({ isActive }) => ({
               display: "flex",
               alignItems: "center",
               gap: 9,
-              padding: collapsed ? "8px 0" : "7px 10px",
-              justifyContent: collapsed ? "center" : "flex-start",
+              padding: showLabels ? "7px 10px" : "8px 0",
+              justifyContent: showLabels ? "flex-start" : "center",
               borderRadius: "var(--radius)",
               cursor: "pointer",
               textDecoration: "none",
@@ -160,7 +187,7 @@ export default function Sidebar() {
             })}
           >
             <NavIcon name={item.icon} size={16} />
-            {!collapsed && <span>{item.label}</span>}
+            {showLabels && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
@@ -168,16 +195,15 @@ export default function Sidebar() {
       <div
         style={{
           borderTop: "1px solid var(--sidebar-border)",
-          padding: collapsed ? "12px 0" : "12px",
+          padding: showLabels ? "12px" : "12px 0",
           display: "flex",
           alignItems: "center",
           gap: 8,
-          justifyContent: collapsed ? "center" : "space-between",
+          justifyContent: showLabels ? "space-between" : "center",
+          flexShrink: 0,
         }}
       >
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <div
             style={{
               width: 32,
@@ -195,7 +221,7 @@ export default function Sidebar() {
           >
             {getInitials(perfil?.nombre_completo)}
           </div>
-          {!collapsed && (
+          {showLabels && (
             <div style={{ minWidth: 0 }}>
               <p
                 style={{
@@ -206,19 +232,20 @@ export default function Sidebar() {
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   maxWidth: 120,
+                  margin: 0,
                 }}
               >
                 {perfil?.nombre_completo ?? "Usuario"}
               </p>
-              <p style={{ fontSize: 11, color: "var(--muted-fg)" }}>
+              <p style={{ fontSize: 11, color: "var(--muted-fg)", margin: 0 }}>
                 {ROLE_LABELS[perfil?.rol] ?? ""}
               </p>
             </div>
           )}
         </div>
-        {!collapsed && (
+        {showLabels && (
           <button
-            onClick={handleLogout}
+            onClick={() => setLogoutDialogOpen(true)}
             title="Cerrar sesión"
             style={{
               background: "none",
