@@ -2,20 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
-import { ROLE_DEFAULT_VIEW } from "../../../constants/roles";
 import { useSignIn } from "../../../hooks/queries/useAuth";
 import { parseAuthError } from "../../../lib/auth-errors";
 import { loginSchema } from "../../../schemas/auth.schema";
-import { useAuthStore } from "../../../stores/authStore";
 import { Alert, AlertDescription } from "../../ui/alert";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 
 export default function LoginForm() {
-  const navigate = useNavigate();
-  const { perfil } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState("");
 
@@ -31,13 +26,9 @@ export default function LoginForm() {
 
   const onSubmit = (values) => {
     setAuthError("");
+    // Navigation is handled reactively by LoginPage's useEffect once
+    // AuthProvider sets the session after onAuthStateChange(SIGNED_IN).
     signIn(values, {
-      onSuccess: () => {
-        const destino = perfil?.rol
-          ? (ROLE_DEFAULT_VIEW[perfil.rol] ?? "/dashboard")
-          : "/dashboard";
-        navigate(destino, { replace: true });
-      },
       onError: (error) => {
         setAuthError(parseAuthError(error));
       },

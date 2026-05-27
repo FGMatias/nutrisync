@@ -1,6 +1,6 @@
 import { Bell, LogOut, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { NAV_ITEMS } from "../../constants/nav";
 import { useAuth, useSignOut } from "../../hooks/queries/useAuth";
 import { Button } from "../ui/button";
@@ -30,7 +30,6 @@ function getInitials(name = "") {
 
 export default function Header() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { perfil } = useAuth();
   const { mutate: signOut } = useSignOut();
   const [dark, setDark] = useState(() =>
@@ -119,11 +118,7 @@ export default function Header() {
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() =>
-                signOut(undefined, {
-                  onSuccess: () => navigate("/login", { replace: true }),
-                })
-              }
+              onClick={() => signOut()}
               style={{ color: "var(--danger)", cursor: "pointer" }}
             >
               <LogOut size={14} className="mr-2" />
