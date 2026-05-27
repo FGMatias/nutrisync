@@ -38,8 +38,6 @@ export async function getUsuarioById(id) {
   return data;
 }
 
-// Requires Supabase email confirmation disabled (school intranet setting)
-// so the new user's session doesn't override the admin's current session.
 export async function createUsuario({
   email,
   password,

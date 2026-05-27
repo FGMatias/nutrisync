@@ -1,10 +1,14 @@
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { CheckCircle2, LogOut } from 'lucide-react'
+<<<<<<< HEAD
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useSignOut } from '../hooks/queries/useAuth'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
+=======
+import { useSignOut } from '../hooks/queries/useAuth'
+>>>>>>> origin/claude/pensive-heisenberg-KTWpe
 import { Button } from '../components/ui/button'
 
 const alumnoMock = {
@@ -32,6 +36,7 @@ const historial = [
 const entregadoHoy = historial[0].entregado
 
 export default function PortalPadrePage() {
+<<<<<<< HEAD
   const navigate = useNavigate()
   const { mutate: signOut, isPending: isSigningOut } = useSignOut()
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
@@ -40,6 +45,10 @@ export default function PortalPadrePage() {
     setLogoutDialogOpen(true)
   }
 
+=======
+  const { mutate: signOut } = useSignOut()
+
+>>>>>>> origin/claude/pensive-heisenberg-KTWpe
   return (
     <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
@@ -53,7 +62,7 @@ export default function PortalPadrePage() {
             <p style={{ fontSize: 11, color: 'var(--muted-fg)', margin: 0 }}>Portal de Padres</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
+        <Button variant="ghost" size="sm" onClick={() => signOut()}>
           <LogOut size={14} style={{ marginRight: 4 }} /> Cerrar sesión
         </Button>
       </header>
