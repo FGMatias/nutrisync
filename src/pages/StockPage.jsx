@@ -643,14 +643,29 @@ export default function StockPage() {
           }
         }}
       >
-        <SheetContent style={{ width: 560, maxWidth: "95vw", overflowY: "auto" }}>
+        <SheetContent
+          style={{
+            width: 560,
+            maxWidth: "95vw",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
           <SheetHeader>
             <SheetTitle>{productoMode === "edit" ? "Editar producto" : "Definir producto"}</SheetTitle>
           </SheetHeader>
           <form
             id="producto-form"
             onSubmit={handleSubmit(onSubmitProducto)}
-            style={{ padding: "24px 0 80px", display: "flex", flexDirection: "column", gap: 16 }}
+            style={{
+              padding: "24px 0 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              overflowY: "auto",
+              flex: 1,
+            }}
           >
             <div style={{ background: "var(--muted)", padding: "12px 16px", borderRadius: 8 }}>
               <p style={{ margin: 0, fontSize: 12, color: "var(--muted-fg)" }}>
@@ -832,16 +847,13 @@ export default function StockPage() {
 
           <SheetFooter
             style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
               padding: "12px 24px",
               background: "var(--card)",
               borderTop: "1px solid var(--border)",
               display: "flex",
               gap: 8,
               justifyContent: "flex-end",
+              flexShrink: 0,
             }}
           >
             <Button

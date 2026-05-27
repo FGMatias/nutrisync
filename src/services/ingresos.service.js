@@ -204,37 +204,47 @@ export async function createIngreso(payload) {
   };
 }
 
-export async function getAccesosVehicularesDisponibles() {
-  const { data, error } = await supabase
+export async function getAccesosVehicularesDisponibles(proveedorId = null) {
+  let query = supabase
     .from("acceso_vehicular")
     .select(
       `
         id,
+        id_proveedor,
         placa,
         conductor,
         hora_entrada,
         hora_salida,
         proveedor:proveedores!acceso_vehicular_id_proveedor_fkey (
+          id,
           nombre
         )
       `,
     )
     .order("hora_entrada", { ascending: false })
-    .limit(20);
+    .limit(500);
+
+  if (proveedorId) {
+    query = query.eq("id_proveedor", Number(proveedorId));
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
   return (data ?? []).map((row) => ({
-    id: row.id,
-    label: `${row.placa} · ${row.proveedor?.nombre ?? "Proveedor"} · ${new Date(
-      row.hora_entrada,
-    ).toLocaleString("es-PE", {
-      dateStyle: "short",
-      timeStyle: "short",
-    })}`,
-    value: String(row.id),
-    abierto: !row.hora_salida,
-  }));
+      id: row.id,
+      id_proveedor: row.id_proveedor ?? row.proveedor?.id ?? null,
+      proveedor_nombre: row.proveedor?.nombre ?? "",
+      label: `${row.placa} · ${row.proveedor?.nombre ?? "Proveedor"} · ${new Date(
+        row.hora_entrada,
+      ).toLocaleString("es-PE", {
+        dateStyle: "short",
+        timeStyle: "short",
+      })}${row.hora_salida ? " · Finalizado" : " · En planta"}`,
+      value: String(row.id),
+      abierto: !row.hora_salida,
+    }));
 }
 
 export async function anularIngreso(id) {

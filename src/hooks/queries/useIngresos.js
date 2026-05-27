@@ -6,6 +6,7 @@ import {
   getAccesosVehicularesDisponibles,
   getIngresos,
 } from "../../services/ingresos.service";
+import { guardarActaRecepcion } from "../../services/actas.service";
 
 const KEY = "ingresos";
 
@@ -50,10 +51,23 @@ export function useAnularIngreso() {
   });
 }
 
-export function useAccesosVehicularesDisponibles() {
+export function useAccesosVehicularesDisponibles(proveedorId) {
   return useQuery({
-    queryKey: ["accesos-vehiculares"],
-    queryFn: getAccesosVehicularesDisponibles,
+    queryKey: ["accesos-vehiculares", proveedorId ?? "all"],
+    queryFn: () => getAccesosVehicularesDisponibles(proveedorId),
+    enabled: !!proveedorId,
     staleTime: 30_000,
+  });
+}
+
+export function useGenerarActaIngreso() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: guardarActaRecepcion,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["movimientos"] });
+      toast.success("Acta generada y guardada correctamente");
+    },
   });
 }

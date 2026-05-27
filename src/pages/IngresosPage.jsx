@@ -50,6 +50,7 @@ import {
   useAccesosVehicularesDisponibles,
   useAnularIngreso,
   useCreateIngreso,
+  useGenerarActaIngreso,
   useIngresos,
 } from "../hooks/queries/useIngresos";
 import { useProductosPorProveedor } from "../hooks/queries/useProductos";
@@ -57,6 +58,9 @@ import {
   ingresoFormDefaultValues,
   ingresoSchema,
 } from "../schemas/ingreso.schema";
+import { useAuthStore } from "../stores/authStore";
+import { getActaFirmadaUrl } from "../services/actas.service";
+import { buildActaPdf, triggerDownload } from "../utils/actasPdf";
 
 const PAGE_SIZE = 10;
 
@@ -117,6 +121,14 @@ export default function IngresosPage() {
   const [drawerStep, setDrawerStep] = useState(1);
   const [detalleIngreso, setDetalleIngreso] = useState(null);
   const [ingresoAAnular, setIngresoAAnular] = useState(null);
+  const [actaDialog, setActaDialog] = useState({
+    open: false,
+    status: "idle",
+    ingreso: null,
+    downloadUrl: "",
+    fileName: "",
+    error: "",
+  });
 
   const { data: ingresos = [], isLoading } = useIngresos();
   const { data: proveedoresData } = useProveedores({
@@ -149,9 +161,11 @@ export default function IngresosPage() {
   const itemsValues = useWatch({ control, name: "items" }) ?? [];
   const { data: productosProveedor = [], isLoading: loadingProductos } =
     useProductosPorProveedor(proveedorId);
-  const { data: accesosVehiculares = [] } = useAccesosVehicularesDisponibles();
+  const { data: accesosVehiculares = [] } = useAccesosVehicularesDisponibles(proveedorId);
   const { mutate: createIngreso, isPending: isSaving } = useCreateIngreso();
   const { mutate: anularIngreso, isPending: isAnulando } = useAnularIngreso();
+  const { mutateAsync: generarActaIngreso } = useGenerarActaIngreso();
+  const perfilNombre = useAuthStore((state) => state.perfil?.nombre_completo);
 
   const proveedores = proveedoresData?.data ?? [];
   const activeFilters =
@@ -163,6 +177,18 @@ export default function IngresosPage() {
     if (!drawerOpen) return;
     reset(ingresoFormDefaultValues);
   }, [drawerOpen, reset]);
+
+  const accesosVehicularesFiltrados = useMemo(() => accesosVehiculares, [accesosVehiculares]);
+
+  useEffect(() => {
+    if (!accesoVehicularId || accesoVehicularId === "none") return;
+    const stillValid = accesosVehicularesFiltrados.some(
+      (item) => String(item.value) === String(accesoVehicularId),
+    );
+    if (!stillValid) {
+      setValue("id_acceso_vehicular", "", { shouldValidate: true });
+    }
+  }, [accesoVehicularId, accesosVehicularesFiltrados, setValue]);
 
   const filteredIngresos = useMemo(() => {
     const searchText = search.trim().toLowerCase();
@@ -281,8 +307,15 @@ export default function IngresosPage() {
             >
               <FileText size={13} className="mr-2" /> Ver detalle
             </DropdownMenuItem>
-            <DropdownMenuItem style={{ cursor: "pointer" }}>
-              <FileText size={13} className="mr-2" /> Acta
+            <DropdownMenuItem
+              onClick={() => {
+                handleGenerarActa(row);
+              }}
+              style={{ cursor: "pointer" }}
+              disabled={isGeneratingActa}
+            >
+              <FileText size={13} className="mr-2" />
+              {generatingIngresoId === row.id ? "Generando acta..." : "Acta"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -338,6 +371,53 @@ export default function IngresosPage() {
   };
 
   const getItemError = (index, field) => errors.items?.[index]?.[field]?.message;
+
+  const isGeneratingActa = actaDialog.open && actaDialog.status === "generando";
+  const generatingIngresoId = isGeneratingActa ? actaDialog.ingreso?.id : null;
+
+  async function handleGenerarActa(ingreso) {
+    if (!ingreso || isGeneratingActa) return;
+    const fileName = `acta-${ingreso.codigo_ingreso ?? ingreso.id}.pdf`;
+    try {
+      setActaDialog({
+        open: true,
+        status: "generando",
+        ingreso,
+        downloadUrl: "",
+        fileName,
+        error: "",
+      });
+      const pdfBlob = buildActaPdf(ingreso, perfilNombre);
+      const acta = await generarActaIngreso({
+        ingresoId: ingreso.id,
+        codigoIngreso: ingreso.codigo_ingreso,
+        pdfBlob,
+      });
+      const signedUrl = await getActaFirmadaUrl(acta.ruta_pdf);
+      setActaDialog({
+        open: true,
+        status: "generada",
+        ingreso,
+        downloadUrl: signedUrl,
+        fileName,
+        error: "",
+      });
+    } catch (error) {
+      setActaDialog({
+        open: true,
+        status: "error",
+        ingreso,
+        downloadUrl: "",
+        fileName,
+        error: error.message ?? "No se pudo generar el acta",
+      });
+    }
+  }
+
+  function handleDescargarActa() {
+    if (!actaDialog.downloadUrl) return;
+    triggerDownload(actaDialog.downloadUrl, actaDialog.fileName || "acta-recepcion.pdf");
+  }
 
   return (
     <div>
@@ -476,13 +556,20 @@ export default function IngresosPage() {
                         shouldValidate: true,
                       })
                     }
+                    disabled={!proveedorId}
                   >
                     <SelectTrigger style={{ marginTop: 4 }}>
-                      <SelectValue placeholder="Vincular ingreso vehicular..." />
+                      <SelectValue
+                        placeholder={
+                          proveedorId
+                            ? "Vincular ingreso vehicular..."
+                            : "Selecciona primero un proveedor..."
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sin vincular</SelectItem>
-                      {accesosVehiculares.map((item) => (
+                      {accesosVehicularesFiltrados.map((item) => (
                         <SelectItem key={item.id} value={item.value}>
                           {item.label}
                         </SelectItem>
@@ -827,6 +914,105 @@ export default function IngresosPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetalleIngreso(null)}>
               Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={actaDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActaDialog({
+              open: false,
+              status: "idle",
+              ingreso: null,
+              downloadUrl: "",
+              fileName: "",
+              error: "",
+            });
+          }
+        }}
+      >
+        <DialogContent style={{ maxWidth: 460 }}>
+          <DialogHeader>
+            <DialogTitle>Generacion de acta</DialogTitle>
+          </DialogHeader>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+            <p style={{ margin: 0 }}>
+              Ingreso:{" "}
+              <strong style={{ fontFamily: "monospace" }}>
+                {actaDialog.ingreso?.codigo_ingreso ?? "-"}
+              </strong>
+            </p>
+
+            {actaDialog.status === "generando" && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid var(--warning)",
+                  background: "var(--warning-bg)",
+                  color: "var(--warning)",
+                  fontWeight: 600,
+                }}
+              >
+                Generando acta...
+              </div>
+            )}
+
+            {actaDialog.status === "generada" && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid var(--success)",
+                  background: "var(--success-bg)",
+                  color: "var(--success)",
+                  fontWeight: 600,
+                }}
+              >
+                Acta generada correctamente.
+              </div>
+            )}
+
+            {actaDialog.status === "error" && (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid var(--danger)",
+                  background: "var(--danger-bg)",
+                  color: "var(--danger)",
+                  fontWeight: 600,
+                }}
+              >
+                {actaDialog.error || "No se pudo generar el acta."}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setActaDialog({
+                  open: false,
+                  status: "idle",
+                  ingreso: null,
+                  downloadUrl: "",
+                  fileName: "",
+                  error: "",
+                })
+              }
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={handleDescargarActa}
+              disabled={actaDialog.status !== "generada" || !actaDialog.downloadUrl}
+              style={{ background: "var(--primary)", color: "var(--primary-fg)" }}
+            >
+              Descargar
             </Button>
           </DialogFooter>
         </DialogContent>
