@@ -169,58 +169,51 @@ CREATE OR REPLACE FUNCTION "public"."crear_perfil_desde_auth"() RETURNS "trigger
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
-declare
-  v_role text;
+DECLARE
+  v_role       text;
   v_default_role text;
-begin
-  v_default_role := case
-    when exists (select 1 from public.perfiles) then 'almacen'
-    else 'administrador'
-  end;
+BEGIN
+  v_default_role := CASE
+    WHEN EXISTS (SELECT 1 FROM public.perfiles) THEN 'almacen'
+    ELSE 'administrador'
+  END;
 
-  v_role := lower(coalesce(nullif(new.raw_user_meta_data->>'rol', ''), v_default_role));
+  v_role := lower(
+    coalesce(nullif(new.raw_user_meta_data->>'rol', ''), v_default_role)
+  );
 
-  if v_role not in (
-    'administrador',
-    'director',
-    'cae',
-    'almacen',
-    'docente',
-    'operario_logistico',
-    'padre_familia'
-  ) then
+  IF v_role NOT IN (
+    'administrador', 'director', 'cae', 'almacen',
+    'docente', 'operario_logistico', 'padre_familia'
+  ) THEN
     v_role := v_default_role;
-  end if;
+  END IF;
 
-  insert into public.perfiles (
+  INSERT INTO public.perfiles (
     id_usuario_auth,
     rol,
     nombre_completo,
     activo
-  )
-  values (
+  ) VALUES (
     new.id,
     v_role,
     coalesce(
       nullif(new.raw_user_meta_data->>'nombre_completo', ''),
       nullif(
-        btrim(
-          concat_ws(
-            ' ',
-            new.raw_user_meta_data->>'nombres',
-            new.raw_user_meta_data->>'apellidos'
-          )
-        ),
+        btrim(concat_ws(' ',
+          new.raw_user_meta_data->>'nombres',
+          new.raw_user_meta_data->>'apellidos'
+        )),
         ''
       ),
       split_part(coalesce(new.email, 'usuario'), '@', 1)
     ),
     true
   )
-  on conflict (id_usuario_auth) do nothing;
+  ON CONFLICT (id_usuario_auth) DO NOTHING;
 
-  return new;
-end;
+  RETURN new;
+END;
 $$;
 
 
@@ -250,6 +243,127 @@ $$;
 
 
 ALTER FUNCTION "public"."crear_stock_inicial_producto"() OWNER TO "postgres";
+
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."perfiles" (
+    "id" bigint NOT NULL,
+    "id_usuario_auth" "uuid" NOT NULL,
+    "rol" character varying(40) DEFAULT 'almacen'::character varying NOT NULL,
+    "nombre_completo" character varying(255) NOT NULL,
+    "telefono" character varying(20),
+    "dni" character varying(8),
+    "id_alumno" bigint,
+    "activo" boolean DEFAULT true NOT NULL,
+    "creado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "actualizado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "perfiles_dni_formato_check" CHECK ((("dni" IS NULL) OR (("dni")::"text" ~ '^\d{8}$'::"text"))),
+    CONSTRAINT "perfiles_rol_check" CHECK ((("rol")::"text" = ANY ((ARRAY['administrador'::character varying, 'director'::character varying, 'cae'::character varying, 'almacen'::character varying, 'docente'::character varying, 'operario_logistico'::character varying, 'padre_familia'::character varying])::"text"[])))
+);
+
+
+ALTER TABLE "public"."perfiles" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text" DEFAULT NULL::"text", "p_telefono" "text" DEFAULT NULL::"text", "p_rol" "text" DEFAULT 'almacen'::"text", "p_activo" boolean DEFAULT true, "p_id_alumno" bigint DEFAULT NULL::bigint) RETURNS "public"."perfiles"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  v_caller_rol text;
+  v_user_id    uuid;
+  v_perfil     public.perfiles;
+BEGIN
+  SELECT rol INTO v_caller_rol
+  FROM public.perfiles
+  WHERE id_usuario_auth = auth.uid();
+
+  IF v_caller_rol NOT IN ('administrador', 'director') THEN
+    RAISE EXCEPTION 'Permiso denegado: solo administradores pueden crear usuarios';
+  END IF;
+
+  IF p_rol NOT IN (
+    'administrador', 'director', 'cae', 'almacen',
+    'docente', 'operario_logistico', 'padre_familia'
+  ) THEN
+    RAISE EXCEPTION 'Rol inválido: %', p_rol;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM auth.users WHERE email = lower(trim(p_email))) THEN
+    RAISE EXCEPTION 'Ya existe un usuario con el correo %', p_email;
+  END IF;
+
+  v_user_id := gen_random_uuid();
+
+  INSERT INTO auth.users (
+    instance_id, id, aud, role, email,
+    encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data,
+    created_at, updated_at,
+    confirmation_token, email_change, email_change_token_new, recovery_token
+  ) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    v_user_id,
+    'authenticated',
+    'authenticated',
+    lower(trim(p_email)),
+    extensions.crypt('admin123', extensions.gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object('nombre_completo', p_nombre_completo, 'rol', p_rol),
+    now(), now(),
+    '', '', '', ''
+  );
+
+  INSERT INTO auth.identities (
+    id, user_id, provider_id, identity_data, provider,
+    last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(),
+    v_user_id,
+    lower(trim(p_email)),
+    jsonb_build_object('sub', v_user_id::text, 'email', lower(trim(p_email))),
+    'email',
+    now(), now(), now()
+  );
+
+  -- El trigger crear_perfil_desde_auth ya insertó el perfil básico.
+  -- Upsert para completar los datos (dni, telefono, rol, activo, id_alumno).
+  INSERT INTO public.perfiles (
+    id_usuario_auth,
+    nombre_completo,
+    dni,
+    telefono,
+    rol,
+    activo,
+    id_alumno
+  ) VALUES (
+    v_user_id,
+    p_nombre_completo,
+    nullif(trim(coalesce(p_dni, '')), ''),
+    nullif(trim(coalesce(p_telefono, '')), ''),
+    p_rol,
+    p_activo,
+    p_id_alumno
+  )
+  ON CONFLICT (id_usuario_auth) DO UPDATE SET
+    nombre_completo = EXCLUDED.nombre_completo,
+    dni             = EXCLUDED.dni,
+    telefono        = EXCLUDED.telefono,
+    rol             = EXCLUDED.rol,
+    activo          = EXCLUDED.activo,
+    id_alumno       = EXCLUDED.id_alumno
+  RETURNING * INTO v_perfil;
+
+  RETURN v_perfil;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text", "p_telefono" "text", "p_rol" "text", "p_activo" boolean, "p_id_alumno" bigint) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."current_linked_student_id"() RETURNS bigint
@@ -1100,10 +1214,6 @@ $$;
 
 ALTER FUNCTION "public"."rls_auto_enable"() OWNER TO "postgres";
 
-SET default_tablespace = '';
-
-SET default_table_access_method = "heap";
-
 
 CREATE TABLE IF NOT EXISTS "public"."acceso_vehicular" (
     "id" bigint NOT NULL,
@@ -1418,25 +1528,6 @@ ALTER TABLE "public"."ingresos" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS ID
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."perfiles" (
-    "id" bigint NOT NULL,
-    "id_usuario_auth" "uuid" NOT NULL,
-    "rol" character varying(40) DEFAULT 'almacen'::character varying NOT NULL,
-    "nombre_completo" character varying(255) NOT NULL,
-    "telefono" character varying(20),
-    "dni" character varying(8),
-    "id_alumno" bigint,
-    "activo" boolean DEFAULT true NOT NULL,
-    "creado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "actualizado_en" timestamp with time zone DEFAULT "now"() NOT NULL,
-    CONSTRAINT "perfiles_dni_formato_check" CHECK ((("dni" IS NULL) OR (("dni")::"text" ~ '^\d{8}$'::"text"))),
-    CONSTRAINT "perfiles_rol_check" CHECK ((("rol")::"text" = ANY ((ARRAY['administrador'::character varying, 'director'::character varying, 'cae'::character varying, 'almacen'::character varying, 'docente'::character varying, 'operario_logistico'::character varying, 'padre_familia'::character varying])::"text"[])))
-);
-
-
-ALTER TABLE "public"."perfiles" OWNER TO "postgres";
-
-
 ALTER TABLE "public"."perfiles" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENTITY (
     SEQUENCE NAME "public"."perfiles_id_seq"
     START WITH 1
@@ -1647,6 +1738,25 @@ ALTER TABLE "public"."stock" ALTER COLUMN "id" ADD GENERATED BY DEFAULT AS IDENT
     CACHE 1
 );
 
+
+
+CREATE OR REPLACE VIEW "public"."v_usuarios" WITH ("security_invoker"='false') AS
+ SELECT "p"."id",
+    "p"."id_usuario_auth",
+    "u"."email",
+    "p"."nombre_completo",
+    "p"."telefono",
+    "p"."dni",
+    "p"."id_alumno",
+    "p"."rol",
+    "p"."activo",
+    "p"."creado_en",
+    "p"."actualizado_en"
+   FROM ("public"."perfiles" "p"
+     LEFT JOIN "auth"."users" "u" ON (("u"."id" = "p"."id_usuario_auth")));
+
+
+ALTER VIEW "public"."v_usuarios" OWNER TO "postgres";
 
 
 CREATE OR REPLACE VIEW "public"."vw_inventario_actual" AS
@@ -2408,7 +2518,23 @@ CREATE POLICY "perfiles_update_admin" ON "public"."perfiles" FOR UPDATE TO "auth
 
 
 
+CREATE POLICY "planes_delete" ON "public"."planes_distribucion" FOR DELETE TO "authenticated" USING ("public"."has_any_role"(ARRAY['administrador'::"text", 'cae'::"text"]));
+
+
+
 ALTER TABLE "public"."planes_distribucion" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "planes_insert" ON "public"."planes_distribucion" FOR INSERT TO "authenticated" WITH CHECK ("public"."has_any_role"(ARRAY['administrador'::"text", 'cae'::"text"]));
+
+
+
+CREATE POLICY "planes_select" ON "public"."planes_distribucion" FOR SELECT TO "authenticated" USING ("public"."has_any_role"(ARRAY['administrador'::"text", 'director'::"text", 'cae'::"text", 'almacen'::"text"]));
+
+
+
+CREATE POLICY "planes_update" ON "public"."planes_distribucion" FOR UPDATE TO "authenticated" USING ("public"."has_any_role"(ARRAY['administrador'::"text", 'cae'::"text"])) WITH CHECK ("public"."has_any_role"(ARRAY['administrador'::"text", 'cae'::"text"]));
+
 
 
 ALTER TABLE "public"."productos" ENABLE ROW LEVEL SECURITY;
@@ -2541,6 +2667,19 @@ GRANT ALL ON FUNCTION "public"."crear_perfil_desde_auth"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."crear_stock_inicial_producto"() TO "anon";
 GRANT ALL ON FUNCTION "public"."crear_stock_inicial_producto"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."crear_stock_inicial_producto"() TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."perfiles" TO "anon";
+GRANT ALL ON TABLE "public"."perfiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."perfiles" TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text", "p_telefono" "text", "p_rol" "text", "p_activo" boolean, "p_id_alumno" bigint) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text", "p_telefono" "text", "p_rol" "text", "p_activo" boolean, "p_id_alumno" bigint) TO "anon";
+GRANT ALL ON FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text", "p_telefono" "text", "p_rol" "text", "p_activo" boolean, "p_id_alumno" bigint) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."crear_usuario_completo"("p_email" "text", "p_nombre_completo" "text", "p_dni" "text", "p_telefono" "text", "p_rol" "text", "p_activo" boolean, "p_id_alumno" bigint) TO "service_role";
 
 
 
@@ -2802,12 +2941,6 @@ GRANT ALL ON SEQUENCE "public"."ingresos_id_seq" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."perfiles" TO "anon";
-GRANT ALL ON TABLE "public"."perfiles" TO "authenticated";
-GRANT ALL ON TABLE "public"."perfiles" TO "service_role";
-
-
-
 GRANT ALL ON SEQUENCE "public"."perfiles_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."perfiles_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."perfiles_id_seq" TO "service_role";
@@ -2895,6 +3028,12 @@ GRANT ALL ON TABLE "public"."stock" TO "service_role";
 GRANT ALL ON SEQUENCE "public"."stock_id_seq" TO "anon";
 GRANT ALL ON SEQUENCE "public"."stock_id_seq" TO "authenticated";
 GRANT ALL ON SEQUENCE "public"."stock_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."v_usuarios" TO "anon";
+GRANT ALL ON TABLE "public"."v_usuarios" TO "authenticated";
+GRANT ALL ON TABLE "public"."v_usuarios" TO "service_role";
 
 
 
