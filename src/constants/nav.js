@@ -62,7 +62,7 @@ export const NAV_ITEMS = [
     label: 'Historial de Movimientos',
     icon: 'History',
     href: '/movimientos',
-    roles: [ROLES.ADMINISTRADOR, ROLES.DIRECTOR, ROLES.CAE],
+    roles: [ROLES.ADMINISTRADOR, ROLES.DIRECTOR, ROLES.CAE, ROLES.ALMACEN],
   },
   {
     key: 'reportes',
@@ -90,6 +90,20 @@ export const NAV_ITEMS = [
     label: 'Etiquetas QR Lotes',
     icon: 'Tag',
     href: '/etiquetas',
+    roles: [ROLES.ADMINISTRADOR, ROLES.ALMACEN],
+  },
+  {
+    key: 'planes-distribucion',
+    label: 'Planes de Distribución',
+    icon: 'CalendarCheck',
+    href: '/planes-distribucion',
+    roles: [ROLES.ADMINISTRADOR, ROLES.DIRECTOR, ROLES.CAE],
+  },
+  {
+    key: 'ajustes-stock',
+    label: 'Ajustes de Stock',
+    icon: 'SlidersHorizontal',
+    href: '/ajustes-stock',
     roles: [ROLES.ADMINISTRADOR, ROLES.ALMACEN],
   },
   {
