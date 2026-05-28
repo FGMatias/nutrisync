@@ -197,6 +197,34 @@ export async function createAjusteStock(payload) {
   return data;
 }
 
+export async function getAjustesStock({ id_producto, tipo_ajuste, desde, hasta } = {}) {
+  let query = supabase
+    .from("ajustes_stock")
+    .select(
+      `
+        id,
+        id_producto,
+        id_usuario,
+        tipo_ajuste,
+        cantidad_delta,
+        motivo,
+        creado_en,
+        producto:productos!ajustes_stock_id_producto_fkey(id, nombre, unidad_medida),
+        usuario:perfiles!ajustes_stock_id_usuario_fkey(id, nombre_completo)
+      `,
+    )
+    .order("creado_en", { ascending: false });
+
+  if (id_producto) query = query.eq("id_producto", Number(id_producto));
+  if (tipo_ajuste) query = query.eq("tipo_ajuste", tipo_ajuste);
+  if (desde) query = query.gte("creado_en", desde);
+  if (hasta) query = query.lte("creado_en", hasta);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getInventarioFiltrado({
   search = "",
   categoria = "todas",

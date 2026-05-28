@@ -2,6 +2,7 @@ import { parseAlumnoQrPayload } from "../lib/alumnos-qr";
 import { offlineDb } from "../lib/offline-db";
 import { supabase } from "../lib/supabase";
 import { getCurrentPerfil } from "./auth.service";
+import { getPlanesActivosHoy } from "./planesDistribucion.service";
 
 function getNowParts() {
   const now = new Date();
@@ -162,39 +163,21 @@ async function getAlumnoByCodigoQr(codigoQr) {
   }
 }
 
-async function insertDistribucion(payload) {
-  const { data, error } = await supabase
-    .from("distribuciones")
-    .insert(payload)
-    .select(
-      `
-        id,
-        id_alumno,
-        id_docente,
-        fecha,
-        hora,
-        origen,
-        sincronizado,
-        observaciones,
-        creado_en,
-        alumno:alumnos!distribuciones_id_alumno_fkey (
-          id,
-          nombre,
-          apellido,
-          dni,
-          grado,
-          seccion
-        ),
-        docente:perfiles!distribuciones_id_docente_fkey (
-          id,
-          nombre_completo
-        )
-      `,
-    )
-    .single();
+async function callRegistrarDistribucionQr(codigoQr, items, origen = "online") {
+  const p_items = items.map((i) => ({
+    id_producto: Number(i.id_producto),
+    cantidad: Number(i.cantidad_por_alumno ?? i.cantidad ?? 1),
+  }));
+
+  const { data, error } = await supabase.rpc("registrar_distribucion_qr", {
+    p_codigo_qr: codigoQr,
+    p_items: p_items,
+    p_origen: origen,
+    p_sincronizado: true,
+  });
 
   if (error) throw error;
-  return mapDistribucionRow(data);
+  return data;
 }
 
 async function addPendingDistribucion(record) {
@@ -215,16 +198,17 @@ export async function syncPendingDistribuciones() {
 
   for (const item of pending) {
     try {
-      await insertDistribucion({
-        id_alumno: Number(item.alumno_id),
-        id_docente: Number(item.docente_id),
-        fecha: item.fecha,
-        hora: item.hora,
-        origen: "offline",
-        sincronizado: true,
-        observaciones: item.observaciones?.trim() || null,
-      });
+      const items = Array.isArray(item.items) && item.items.length > 0
+        ? item.items
+        : await getPlanesActivosHoy();
 
+      if (items.length === 0) {
+        await offlineDb.distribucionesPendientes.delete(item.id);
+        synced += 1;
+        continue;
+      }
+
+      await callRegistrarDistribucionQr(item.codigo_qr, items, "offline");
       await offlineDb.distribucionesPendientes.delete(item.id);
       synced += 1;
     } catch (error) {
@@ -333,31 +317,33 @@ export async function registerDistribucionFromQr(rawValue) {
     created_at: now.creado_en,
   };
 
-  if (!navigator.onLine) {
-    const offlineDistribucion = await addPendingDistribucion(baseRecord);
-    return {
-      status: "offline",
-      alumno,
-      distribucion: offlineDistribucion,
-      message: "Escaneo registrado. Se sincronizara cuando vuelva el internet.",
-    };
+  let planItems = [];
+  if (navigator.onLine) {
+    planItems = await getPlanesActivosHoy();
+  }
+
+  if (!navigator.onLine || planItems.length === 0) {
+    if (!navigator.onLine) {
+      const offlineDistribucion = await addPendingDistribucion({ ...baseRecord, items: [] });
+      return {
+        status: "offline",
+        alumno,
+        distribucion: offlineDistribucion,
+        message: "Escaneo registrado. Se sincronizara cuando vuelva el internet.",
+      };
+    }
+    throw new Error(
+      "No hay plan de distribucion activo para hoy. Crea un plan antes de escanear.",
+    );
   }
 
   try {
-    const distribucion = await insertDistribucion({
-      id_alumno: baseRecord.alumno_id,
-      id_docente: baseRecord.docente_id,
-      fecha: baseRecord.fecha,
-      hora: baseRecord.hora,
-      origen: "online",
-      sincronizado: true,
-      observaciones: null,
-    });
+    await callRegistrarDistribucionQr(alumno.codigo_qr, planItems, "online");
 
     return {
       status: "online",
       alumno,
-      distribucion,
+      distribucion: baseRecord,
       message: "Escaneo registrado correctamente.",
     };
   } catch (error) {
@@ -368,7 +354,10 @@ export async function registerDistribucionFromQr(rawValue) {
     }
 
     if (isConnectivityError(error)) {
-      const offlineDistribucion = await addPendingDistribucion(baseRecord);
+      const offlineDistribucion = await addPendingDistribucion({
+        ...baseRecord,
+        items: planItems,
+      });
       return {
         status: "offline",
         alumno,

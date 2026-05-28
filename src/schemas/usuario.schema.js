@@ -15,7 +15,10 @@ const base = z.object({
   telefono: z.string().max(15).optional().or(z.literal("")),
   rol: z.enum(rolesValues, { required_error: "Selecciona un rol" }),
   activo: z.boolean().default(true),
-  id_alumno: z.string().uuid().nullable().optional(),
+  id_alumno: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().int().positive().nullable().optional(),
+  ),
 });
 
 export const usuarioSchema = base;

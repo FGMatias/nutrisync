@@ -2,9 +2,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { ALUMNOS_MOCK } from "../../../mock/alumnos.mock";
 import { usuarioCreateSchema, usuarioSchema } from "../../../schemas/usuario.schema";
 import { ROLE_LABELS, ROLES } from "../../../constants/roles";
+import { useAlumnos } from "../../../hooks/queries/useAlumnos";
 import {
   useCreateUsuario,
   useUpdateUsuario,
@@ -50,6 +50,7 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
   });
 
   const watchRol = watch("rol");
+  const { data: alumnos = [] } = useAlumnos();
 
   useEffect(() => {
     if (open) {
@@ -195,17 +196,17 @@ export default function UsuarioDrawer({ open, onOpenChange, usuario }) {
             <div>
               <Label>Alumno vinculado</Label>
               <Select
-                value={watch("id_alumno") ?? ""}
+                value={watch("id_alumno") != null ? String(watch("id_alumno")) : ""}
                 onValueChange={(v) =>
-                  setValue("id_alumno", v || null, { shouldValidate: true })
+                  setValue("id_alumno", v ? Number(v) : null, { shouldValidate: true })
                 }
               >
                 <SelectTrigger style={{ marginTop: 4 }}>
                   <SelectValue placeholder="Seleccionar alumno..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALUMNOS_MOCK.filter((a) => a.activo).map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
+                  {alumnos.filter((a) => a.activo !== false).map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>
                       {a.nombre} {a.apellido} — {a.grado} {a.seccion}
                     </SelectItem>
                   ))}

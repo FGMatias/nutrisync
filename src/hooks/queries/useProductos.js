@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  createProducto,
   createAjusteStock,
+  createProducto,
   deleteProducto,
+  getAjustesStock,
   getInventario,
   getProductosPorProveedor,
   toggleActivoProducto,
@@ -94,6 +95,14 @@ export function useToggleActivoProducto() {
   });
 }
 
+export function useAjustesStock(filters = {}) {
+  return useQuery({
+    queryKey: ["ajustes_stock", filters],
+    queryFn: () => getAjustesStock(filters),
+    staleTime: 30_000,
+  });
+}
+
 export function useAjustarStock() {
   const qc = useQueryClient();
   return useMutation({
@@ -101,6 +110,7 @@ export function useAjustarStock() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [INVENTARIO_KEY] });
       qc.invalidateQueries({ queryKey: ["movimientos"] });
+      qc.invalidateQueries({ queryKey: ["ajustes_stock"] });
       toast.success("Stock actualizado correctamente");
     },
     onError: (error) => {

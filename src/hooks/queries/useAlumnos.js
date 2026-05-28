@@ -32,6 +32,7 @@ export function useCreateAlumno() {
     mutationFn: createAlumno,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["alumnos", "activos_count"] });
       toast.success("Alumno registrado correctamente");
     },
     onError: (e) => toast.error(e.message),
@@ -44,6 +45,7 @@ export function useUpdateAlumno() {
     mutationFn: ({ id, data }) => updateAlumno(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["alumnos", "activos_count"] });
       toast.success("Alumno actualizado correctamente");
     },
     onError: (e) => toast.error(e.message),
@@ -56,6 +58,7 @@ export function useToggleActivoAlumno() {
     mutationFn: ({ id, activo }) => toggleActivoAlumno(id, activo),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: [KEY] });
+      qc.invalidateQueries({ queryKey: ["alumnos", "activos_count"] });
       toast.success(
         data.activo ? "Alumno activado" : "Alumno desactivado",
       );
