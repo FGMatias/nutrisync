@@ -5,8 +5,25 @@
   planificar y ejecutar la distribución de alimentos a los alumnos mediante escaneo
   QR, y llevar trazabilidad completa de todos los movimientos de stock.
 
-  ## Tecnologías
+  ## Demo
 
+  **URL:** https://nutrisync-psi.vercel.app
+
+  ### Usuarios de prueba
+
+  Todos los usuarios tienen la contraseña: `admin123`
+
+  | Correo | Rol |
+  |---|---|
+  | `admin@ie8060.edu.pe` | Administrador |
+  | `director@ie8060.edu.pe` | Director |
+  | `cae@ie8060.edu.pe` | CAE |
+  | `almacen@ie8060.edu.pe` | Personal de Almacén |
+  | `docente@ie8060.edu.pe` | Docente |
+  | `logistica@ie8060.edu.pe` | Operario Logístico |
+
+  ## Tecnologías
+  
   - **Frontend:** React 19 + Vite
   - **Backend / Base de datos:** Supabase (PostgreSQL con RLS)
   - **Estado del servidor:** TanStack Query v5
@@ -16,14 +33,14 @@
   - **Offline:** Dexie (IndexedDB)
   - **Reportes:** jsPDF + xlsx
   - **Despliegue:** Vercel
-  
-  ## Funcionalidades
+
+  ## Funcionalidades  
 
   ### Por módulo
-  
   | Módulo | Descripción | Roles |
   |---|---|---|
   | **Dashboard** | Resumen de stock, distribuciones y alertas del día | Admin,
+  Director, CAE, Almacén |
   | **Proveedores** | CRUD de proveedores con datos de contacto | Admin, Almacén |
   | **Ingreso de Productos** | Registro de ingresos con detalle por lote, actas y
   checklists de recepción | Admin, Almacén |
@@ -53,7 +70,7 @@
   | **Usuarios** | Gestión de cuentas del sistema con roles | Admin |
   | **Portal del Padre** | Consulta de historial de distribuciones del alumno |
   Padre de Familia |
- 
+
   ### Flujo de distribución
 
   Admin/CAE crea el plan del día (productos + cantidad por alumno)
@@ -119,7 +136,7 @@
   ajuste.
 
   Las migraciones se encuentran en `supabase/migrations/`.
-  
+
   ## Configuración
 
   ### Variables de entorno
@@ -131,7 +148,7 @@
   VITE_SUPABASE_ANON_KEY=<tu-anon-key>
 
   Instalación y desarrollo
-  
+
   # Instalar dependencias
   npm install
 
