@@ -218,19 +218,19 @@ export default function QRScannerPage() {
     () =>
       isOnline
         ? {
-            label: "En linea",
-            style: {
-              background: "var(--success-bg)",
-              color: "var(--success)",
-            },
-          }
-        : {
-            label: "Offline",
-            style: {
-              background: "var(--danger-bg)",
-              color: "var(--danger)",
-            },
+          label: "En linea",
+          style: {
+            background: "var(--success-bg)",
+            color: "var(--success)",
           },
+        }
+        : {
+          label: "Offline",
+          style: {
+            background: "var(--danger-bg)",
+            color: "var(--danger)",
+          },
+        },
     [isOnline],
   );
 
@@ -276,6 +276,10 @@ export default function QRScannerPage() {
     return qrReaderRef.current;
   }
 
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  }
+
   async function requestCameraPermission() {
     if (
       typeof navigator === "undefined" ||
@@ -284,8 +288,12 @@ export default function QRScannerPage() {
       return;
     }
 
+    const videoConstraint = isMobileDevice()
+      ? { facingMode: { ideal: "environment" } }
+      : true;
+
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
+      video: videoConstraint,
       audio: false,
     });
 
@@ -446,6 +454,18 @@ export default function QRScannerPage() {
   }
 
   function getScannerConfig() {
+    const videoConstraints = {
+      width: { ideal: 1280 },
+      height: { ideal: 1280 },
+    };
+
+    /*En dispositivos móviles, se solicita explícitamente la cámara trasera mediante facingMode.
+     Las etiquetas de la cámara no están disponibles antes de que se otorgue el permiso en dispositivos móviles,
+     por lo que la clasificación basada en etiquetas no puede seleccionar de forma fiable la cámara trasera.*/
+    if (isMobileDevice()) {
+      videoConstraints.facingMode = { ideal: "environment" };
+    }
+
     return {
       fps: 18,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
@@ -463,10 +483,7 @@ export default function QRScannerPage() {
       experimentalFeatures: {
         useBarCodeDetectorIfSupported: true,
       },
-      videoConstraints: {
-        width: { ideal: 1280 },
-        height: { ideal: 1280 },
-      },
+      videoConstraints,
     };
   }
 
@@ -477,11 +494,19 @@ export default function QRScannerPage() {
       (decodedText) => {
         handleDecodedText(decodedText);
       },
-      () => {},
+      () => { },
     );
   }
 
   async function startReaderWithPreferredDevice(reader, cameras) {
+    /*En dispositivos móviles, se depende de la restricción de facingMode (establecida en getScannerConfig)
+     en lugar de la selección del ID de la cámara, porque las etiquetas no están disponibles antes de que se otorgue el permiso
+     y la cámara listada con frecuencia es la cámara frontal.*/
+    if (isMobileDevice()) {
+      await startReaderWithCamera(reader, { facingMode: { ideal: "environment" } });
+      return;
+    }
+
     const preferredId =
       selectedCameraId && cameras.some((camera) => camera.id === selectedCameraId)
         ? selectedCameraId
