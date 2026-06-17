@@ -53,6 +53,13 @@ function formatDateTime(dateStr) {
     " " + d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
 }
 
+function getLocalDateString(dateInput) {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  const tzOffset = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+
 export default function AjustesStockPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sign, setSign] = useState(1);
@@ -70,9 +77,9 @@ export default function AjustesStockPage() {
   const { data: inventario = [] } = useInventario();
   const productosActivos = useMemo(() => inventario.filter((p) => p.activo !== false), [inventario]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateString(new Date());
   const ajustesHoy = useMemo(
-    () => ajustes.filter((a) => a.creado_en?.slice(0, 10) === today),
+    () => ajustes.filter((a) => getLocalDateString(a.creado_en) === today),
     [ajustes, today],
   );
   const sumaPositiva = useMemo(

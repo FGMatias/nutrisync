@@ -29,6 +29,18 @@ function getLocalDateKey(dateLike) {
   return `${year}-${month}-${day}`;
 }
 
+function getLocalTimeKey(dateLike) {
+  const date = new Date(dateLike);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 function getTimestamp(dateLike, fallbackFecha = "", fallbackHora = "") {
   const primary = new Date(dateLike);
   if (!Number.isNaN(primary.getTime())) {
@@ -57,7 +69,7 @@ function mapDistribucionRow(row) {
   const alumnoNombre = row.alumno_nombre_completo ?? buildAlumnoNombre(alumno);
   const createdAt = row.creado_en ?? row.created_at ?? null;
   const fecha = createdAt ? getLocalDateKey(createdAt) : row.fecha ?? "";
-  const hora = String(row.hora ?? "").slice(0, 8);
+  const hora = createdAt ? getLocalTimeKey(createdAt) : String(row.hora ?? "").slice(0, 8);
   const timestamp = getTimestamp(createdAt, fecha, hora);
 
   return {
