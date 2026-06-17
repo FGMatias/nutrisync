@@ -1,4 +1,4 @@
-import { Bell, LogOut, Menu, Moon, Sun } from "lucide-react";
+import { Accessibility, Bell, LogOut, Menu, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NAV_ITEMS } from "../../constants/nav";
@@ -30,7 +30,7 @@ function getInitials(name = "") {
   );
 }
 
-export default function Header({ onMenuToggle }) {
+export default function Header({ onMenuToggle, onAccesibilidadToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { perfil } = useAuth();
@@ -95,6 +95,17 @@ export default function Header({ onMenuToggle }) {
           title="Cambiar tema"
         >
           {dark ? <Sun size={16} /> : <Moon size={16} />}
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={onAccesibilidadToggle}
+          aria-label="Abrir panel de accesibilidad"
+          title="Accesibilidad"
+          style={{ gap: 6, fontSize: 13, height: 34, paddingInline: 12 }}
+        >
+          <Accessibility size={15} />
+          {!isMobile && <span>Accesibilidad</span>}
         </Button>
 
         <div style={{ position: "relative" }}>

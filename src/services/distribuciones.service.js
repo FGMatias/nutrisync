@@ -163,7 +163,7 @@ async function getAlumnoByCodigoQr(codigoQr) {
   }
 }
 
-async function callRegistrarDistribucionQr(codigoQr, items, origen = "online") {
+async function callRegistrarDistribucionQr(codigoQr, items, origen = "online", fecha = null, hora = null) {
   const p_items = items.map((i) => ({
     id_producto: Number(i.id_producto),
     cantidad: Number(i.cantidad_por_alumno ?? i.cantidad ?? 1),
@@ -172,6 +172,8 @@ async function callRegistrarDistribucionQr(codigoQr, items, origen = "online") {
   const { data, error } = await supabase.rpc("registrar_distribucion_qr", {
     p_codigo_qr: codigoQr,
     p_items: p_items,
+    p_fecha: fecha,
+    p_hora: hora,
     p_origen: origen,
     p_sincronizado: true,
   });
@@ -208,7 +210,7 @@ export async function syncPendingDistribuciones() {
         continue;
       }
 
-      await callRegistrarDistribucionQr(item.codigo_qr, items, "offline");
+      await callRegistrarDistribucionQr(item.codigo_qr, items, "offline", item.fecha ?? null, item.hora ?? null);
       await offlineDb.distribucionesPendientes.delete(item.id);
       synced += 1;
     } catch (error) {
@@ -338,7 +340,7 @@ export async function registerDistribucionFromQr(rawValue) {
   }
 
   try {
-    await callRegistrarDistribucionQr(alumno.codigo_qr, planItems, "online");
+    await callRegistrarDistribucionQr(alumno.codigo_qr, planItems, "online", now.fecha, now.hora);
 
     return {
       status: "online",

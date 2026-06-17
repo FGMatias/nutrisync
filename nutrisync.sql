@@ -842,7 +842,7 @@ $$;
 ALTER FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_ingreso" bigint, "p_cantidad_recibida" integer, "p_observaciones" "text", "p_evidencias" "jsonb") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean DEFAULT true, "p_origen" character varying DEFAULT 'online'::character varying, "p_observaciones" "text" DEFAULT NULL::"text") RETURNS bigint
+CREATE OR REPLACE FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_fecha" "date" DEFAULT NULL, "p_hora" time DEFAULT NULL, "p_sincronizado" boolean DEFAULT true, "p_origen" character varying DEFAULT 'online'::character varying, "p_observaciones" "text" DEFAULT NULL::"text") RETURNS bigint
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -893,8 +893,8 @@ begin
   values (
     v_alumno_id,
     v_docente_id,
-    current_date,
-    localtime,
+    coalesce(p_fecha, current_date),
+    coalesce(p_hora, localtime),
     coalesce(p_sincronizado, true),
     case
       when p_origen in ('online', 'offline', 'sincronizado') then p_origen
@@ -2779,9 +2779,9 @@ GRANT ALL ON FUNCTION "public"."registrar_discrepancia_ingreso"("p_id_detalle_in
 
 
 
-GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_fecha" "date", "p_hora" time, "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_fecha" "date", "p_hora" time, "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."registrar_distribucion_qr"("p_codigo_qr" "uuid", "p_items" "jsonb", "p_fecha" "date", "p_hora" time, "p_sincronizado" boolean, "p_origen" character varying, "p_observaciones" "text") TO "service_role";
 
 
 

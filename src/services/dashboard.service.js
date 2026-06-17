@@ -1,6 +1,9 @@
 import { supabase } from "../lib/supabase";
 
 function getDateKey(dateLike) {
+  if (typeof dateLike === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateLike)) {
+    return dateLike;
+  }
   const date = new Date(dateLike);
   if (Number.isNaN(date.getTime())) return "";
   const y = date.getFullYear();

@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lexend:wght@300;400;500;600;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,4 +93,41 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--muted-fg); }
+}
+
+/* === Accesibilidad === */
+
+/* zoom escala todo el body incluyendo inline styles con px */
+.a11y-text-sm body { zoom: 0.88; }
+.a11y-text-lg body { zoom: 1.18; }
+
+/* Los filtros de contraste y daltonismo se aplican vía document.body.style.filter
+   desde useAccesibilidad para poder combinarlos sin que se pisen */
+
+.a11y-reduce-motion *,
+.a11y-reduce-motion *::before,
+.a11y-reduce-motion *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
+}
+
+.a11y-highlight-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}
+
+.a11y-highlight-focus *:focus-visible {
+  outline: 3px solid var(--primary) !important;
+  outline-offset: 3px !important;
+  border-radius: 2px;
+}
+
+.a11y-dislexia body {
+  font-family: "Lexend", sans-serif !important;
+  word-spacing: 0.3em;
+  letter-spacing: 0.02em;
+  line-height: 1.8;
 }
