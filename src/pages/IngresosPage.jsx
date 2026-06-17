@@ -439,7 +439,7 @@ export default function IngresosPage() {
       />
 
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <SearchBar value={search} onChange={setSearch} placeholder="Buscar por proveedor o lote..." />
+        <SearchBar value={search} onChange={setSearch} placeholder="Buscar por proveedor, código o producto..." />
         <FilterBar
           activeCount={activeFilters}
           onClear={() => {
@@ -652,22 +652,21 @@ export default function IngresosPage() {
                           <Label style={{ fontSize: 11 }}>Producto</Label>
                           <Select
                             value={itemsValues?.[index]?.id_producto ?? ""}
-                            onValueChange={(value) =>
-                              {
-                                const producto = productosProveedor.find(
-                                  (item) => String(item.id) === String(value),
-                                );
-                                setValue(`items.${index}.id_producto`, value, {
+                            onValueChange={(value) => {
+                              const producto = productosProveedor.find(
+                                (item) => String(item.id) === String(value),
+                              );
+                              setValue(`items.${index}.id_producto`, value, {
+                                shouldValidate: true,
+                              });
+                              setValue(
+                                `items.${index}.unidad_medida`,
+                                producto?.unidad_medida ?? "kg",
+                                {
                                   shouldValidate: true,
-                                });
-                                setValue(
-                                  `items.${index}.unidad_medida`,
-                                  producto?.unidad_medida ?? "kg",
-                                  {
-                                    shouldValidate: true,
-                                  },
-                                );
-                              }
+                                },
+                              );
+                            }
                             }
                             disabled={!proveedorId || loadingProductos}
                           >

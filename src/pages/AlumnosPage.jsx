@@ -409,7 +409,7 @@ export default function AlumnosPage() {
             </div>
             {selectedAlumno && (
               <div>
-                <Label>Codigo matricula</Label>
+                <Label>Identificador Único QR</Label>
                 <Input
                   value={selectedAlumno.codigo_qr ?? 'sin-codigo'}
                   readOnly

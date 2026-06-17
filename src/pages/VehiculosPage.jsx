@@ -50,13 +50,16 @@ export default function VehiculosPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [vehiculoDetalle, setVehiculoDetalle] = useState(null);
 
+  const getLocalDatetimeString = (date = new Date()) => {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
   // Form states
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
   const [placa, setPlaca] = useState("");
   const [conductor, setConductor] = useState("");
-  const [horaEntrada, setHoraEntrada] = useState(
-    new Date().toISOString().slice(0, 16),
-  );
+  const [horaEntrada, setHoraEntrada] = useState(getLocalDatetimeString());
   const [horaSalida, setHoraSalida] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [archivo, setArchivo] = useState(null);
@@ -120,7 +123,7 @@ export default function VehiculosPage() {
           setProveedorSeleccionado("");
           setPlaca("");
           setConductor("");
-          setHoraEntrada(new Date().toISOString().slice(0, 16));
+          setHoraEntrada(getLocalDatetimeString());
           setHoraSalida("");
           setObservaciones("");
           setArchivo(null);
