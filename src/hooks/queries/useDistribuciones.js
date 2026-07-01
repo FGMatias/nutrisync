@@ -20,7 +20,8 @@ export function useRegisterDistribucionQr() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: registerDistribucionFromQr,
+    mutationFn: ({ rawValue, perfil }) =>
+      registerDistribucionFromQr(rawValue, perfil),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [KEY] });
     },

@@ -425,7 +425,7 @@ export default function QRScannerPage() {
     await stopCamera();
 
     try {
-      const result = await registerDistribucionQr(decodedText);
+      const result = await registerDistribucionQr({ rawValue: decodedText, perfil });
       const distribucion = result.distribucion;
       const alumnoNombre = [
         distribucion.nombre,

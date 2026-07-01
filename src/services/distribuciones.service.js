@@ -1,7 +1,6 @@
 import { parseAlumnoQrPayload } from "../lib/alumnos-qr";
 import { offlineDb } from "../lib/offline-db";
 import { supabase } from "../lib/supabase";
-import { getCurrentPerfil } from "./auth.service";
 import { getPlanesActivosHoy } from "./planesDistribucion.service";
 
 function getNowParts() {
@@ -291,12 +290,16 @@ export async function getDistribuciones() {
   return sortDistribuciones([...remote, ...local]);
 }
 
-export async function registerDistribucionFromQr(rawValue) {
+export async function registerDistribucionFromQr(rawValue, perfil) {
   const parsed = parseAlumnoQrPayload(rawValue);
   if (!parsed) {
     throw new Error(
       "QR denegado. Solo se aceptan codigos generados en la seccion de Alumnos.",
     );
+  }
+
+  if (!perfil?.id) {
+    throw new Error("No hay un perfil activo. Inicia sesion nuevamente.");
   }
 
   const alumno = await getAlumnoByCodigoQr(parsed.qr);
@@ -310,7 +313,6 @@ export async function registerDistribucionFromQr(rawValue) {
     throw new Error("QR denegado. Los datos del alumno no coinciden.");
   }
 
-  const perfil = await getCurrentPerfil();
   const docenteId = perfil.id;
   const now = getNowParts();
 
@@ -332,12 +334,18 @@ export async function registerDistribucionFromQr(rawValue) {
   };
 
   let planItems = [];
+  let lostConnectivity = false;
   if (navigator.onLine) {
-    planItems = await getPlanesActivosHoy();
+    try {
+      planItems = await getPlanesActivosHoy();
+    } catch (error) {
+      if (!isConnectivityError(error)) throw error;
+      lostConnectivity = true;
+    }
   }
 
-  if (!navigator.onLine || planItems.length === 0) {
-    if (!navigator.onLine) {
+  if (!navigator.onLine || lostConnectivity || planItems.length === 0) {
+    if (!navigator.onLine || lostConnectivity) {
       const offlineDistribucion = await addPendingDistribucion({ ...baseRecord, items: [] });
       return {
         status: "offline",
